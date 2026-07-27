@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -25,12 +26,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // "hopefully tree-shaken" — restoring the original single-game bundle size.
 const GAME = process.env.VITE_GAME || 'palworld'
 
+// Vite copies the WHOLE of public/ into dist/, so a Palworld build would
+// otherwise publish every other game's icons too (measured: 1,182 Minecraft
+// icons / 1.8 MB shipped to the Pages site that nothing ever requests). A build
+// should carry only its own game's assets, so drop the other games' asset dirs
+// after the copy. Build-only: the dev server keeps serving every game's assets
+// straight from public/, which is what lets `VITE_GAME=minecraft npm run dev`
+// work without a separate asset tree.
+function pruneOtherGamesAssets(selectedGame) {
+  return {
+    name: 'craftpal:prune-other-games-assets',
+    apply: 'build',
+    closeBundle() {
+      const gamesDir = path.resolve(__dirname, 'dist', 'games')
+      if (!fs.existsSync(gamesDir)) return
+      for (const entry of fs.readdirSync(gamesDir, { withFileTypes: true })) {
+        if (!entry.isDirectory() || entry.name === selectedGame) continue
+        const target = path.join(gamesDir, entry.name)
+        // Belt-and-braces: never delete outside dist/games.
+        if (!target.startsWith(gamesDir + path.sep)) continue
+        fs.rmSync(target, { recursive: true, force: true })
+        this.info(`pruned dist/games/${entry.name} (not the "${selectedGame}" build)`)
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 // Production builds are served from GitHub Pages at /CraftPal/ — runtime
 // asset URLs must go through import.meta.env.BASE_URL (see ItemIcon.jsx).
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/CraftPal/' : '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), pruneOtherGamesAssets(GAME)],
   resolve: {
     alias: {
       'virtual:game-data': path.resolve(__dirname, `src/data/${GAME}/index.js`),
