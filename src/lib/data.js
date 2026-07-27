@@ -12,12 +12,18 @@
 import palworldGame from '../data/palworld/game.json';
 import palworldItemsDoc from '../data/palworld/items.json';
 import palworldStationsDoc from '../data/palworld/stations.json';
+import palworldPalsDoc from '../data/palworld/pals.json';
 
 const REGISTRY = {
   palworld: {
     manifest: palworldGame,
     items: palworldItemsDoc.items,
     stations: palworldStationsDoc,
+    // Small, bundled per-pal index (name/icon/drops/habitat summary) — the
+    // "Dropped by" reverse index (src/lib/drops.js) is built from this. The
+    // *heavy* per-pal point clouds and map.json stay lazy-fetched
+    // (src/lib/mapData.js), never static-imported like this.
+    pals: palworldPalsDoc.pals,
   },
 };
 
@@ -28,3 +34,4 @@ const selected = REGISTRY[requestedGame] ?? REGISTRY[DEFAULT_GAME];
 export const manifest = selected.manifest;
 export const items = selected.items;
 export const stations = selected.stations;
+export const pals = selected.pals;

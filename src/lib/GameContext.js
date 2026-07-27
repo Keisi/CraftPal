@@ -10,7 +10,7 @@ import { createContext, useContext } from 'react';
 export const GameContext = createContext(null);
 
 /**
- * @returns {{items: object, stations: object, manifest: object}}
+ * @returns {{items: object, stations: object, manifest: object, pals: (object|undefined)}}
  */
 export function useGame() {
   const value = useContext(GameContext);

@@ -8,6 +8,8 @@ import { RawSummary } from './components/RawSummary.jsx'
 import { ItemBrowser, TierBadge } from './components/ItemBrowser.jsx'
 import { VariantSwitcher } from './components/VariantSwitcher.jsx'
 import { TasksView } from './components/TasksView.jsx'
+import { MapView } from './components/MapView.jsx'
+import { DroppedBy } from './components/DroppedBy.jsx'
 
 // Diagram first — it's the default view, and the toggle order mirrors that.
 const VIEWS = [
@@ -90,6 +92,23 @@ function TasksNavButton({ count, onClick }) {
   )
 }
 
+// "Map" nav button (PLAN.md §8) — shared by the browse header and the tree
+// header, mirroring TasksNavButton. Only rendered by callers when the loaded
+// game's manifest actually declares a `map` dataset (PLAN.md §9: a game with
+// no map data must show no dead nav entry, not a disabled one).
+function MapNavButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="View the map"
+      className="flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+    >
+      Map
+    </button>
+  )
+}
+
 function ToolbarButton({ children, onClick, active = false, title, disabled = false }) {
   return (
     <button
@@ -127,6 +146,8 @@ function TreeHeader({
   taskCount,
   onAddToTasks,
   onShowTasks,
+  hasMap,
+  onShowMap,
 }) {
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
@@ -223,6 +244,7 @@ function TreeHeader({
           + Add to tasks
         </button>
 
+        {hasMap && <MapNavButton onClick={onShowMap} />}
         <TasksNavButton count={taskCount} onClick={onShowTasks} />
       </div>
     </header>
@@ -240,6 +262,21 @@ function App() {
   // switch and can be driven wholesale by collapse/expand-all.
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [showTasks, setShowTasks] = useState(false)
+  const [showMap, setShowMap] = useState(false)
+  // Which pal's habitat the map should focus when it opens (PLAN.md §8's
+  // item -> pal -> map jump, from an item's "Dropped by" list). Lifted to
+  // App (not local MapView state) for exactly one reason: it's set by a
+  // DIFFERENT component (DroppedBy, in the item view) than the one that
+  // consumes it (MapView) — the same reason browse filters/collapse state
+  // live here rather than in the component that reads them.
+  const [mapFocusPal, setMapFocusPal] = useState(null)
+
+  // The Map view (and any "jump to map" control) only exists when the loaded
+  // game's manifest actually declares the datasets it needs (PLAN.md §9) —
+  // map.json/habitats are lazy-fetched, so there's no other way to know
+  // they exist before even trying, short of a manifest declaration.
+  const hasMap = manifest.datasets?.includes('map')
+  const hasHabitats = manifest.datasets?.includes('habitats')
 
   // Crafting tasks: a persistent build list of {itemId, qty} targets, plus a
   // per-step "done" tick keyed by step itemId — both loaded once (lazily, so
@@ -318,6 +355,14 @@ function App() {
     setShowTasks(false)
   }
 
+  // "View on map" from an item's Dropped-by list (DroppedBy.jsx): jump
+  // straight to the map with that pal's habitat already shown, closing the
+  // "where do I farm this?" loop PLAN.md §8 exists for.
+  function handleShowPalOnMap(code) {
+    setMapFocusPal(code)
+    setShowMap(true)
+  }
+
   // Variant switcher (PLAN.md §5/§9): swap the selected variant but
   // deliberately leave qty untouched. Paths are position-based, so a
   // different variant's recipe would fold the wrong rows — reset.
@@ -339,6 +384,10 @@ function App() {
         onBack={() => setShowTasks(false)}
       />
     )
+  }
+
+  if (showMap) {
+    return <MapView focusPalCode={mapFocusPal} onBack={() => setShowMap(false)} />
   }
 
   if (selectedItem && tree) {
@@ -363,7 +412,11 @@ function App() {
           taskCount={tasks.length}
           onAddToTasks={() => addTask(selectedId, qty)}
           onShowTasks={() => setShowTasks(true)}
+          hasMap={hasMap}
+          onShowMap={() => setShowMap(true)}
         />
+
+        <DroppedBy itemId={selectedId} onShowOnMap={hasMap && hasHabitats ? handleShowPalOnMap : null} />
 
         <main className="flex-1 px-6 py-6">
           <CraftTree tree={tree} view={view} zoom={zoom} collapsed={collapsed} onToggle={toggleCollapsed} />
@@ -382,7 +435,8 @@ function App() {
           <p className="text-sm text-zinc-400">{manifest.tagline}</p>
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {hasMap && <MapNavButton onClick={() => setShowMap(true)} />}
           <TasksNavButton count={tasks.length} onClick={() => setShowTasks(true)} />
         </div>
       </header>
