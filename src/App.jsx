@@ -9,9 +9,10 @@ import { ItemBrowser, RarityBadge } from './components/ItemBrowser.jsx'
 import { RaritySwitcher } from './components/RaritySwitcher.jsx'
 import { TasksView } from './components/TasksView.jsx'
 
+// Diagram first — it's the default view, and the toggle order mirrors that.
 const VIEWS = [
-  { id: 'compact', label: 'Compact' },
   { id: 'diagram', label: 'Diagram' },
+  { id: 'compact', label: 'Compact' },
 ]
 
 // Crafting-tasks persistence (localStorage). Every read is sanitized rather
@@ -171,7 +172,7 @@ function TreeHeader({
 function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [qty, setQty] = useState(1)
-  const [view, setView] = useState('compact')
+  const [view, setView] = useState('diagram')
   // Collapse state lives here, keyed by node path, so it survives a view
   // switch and can be driven wholesale by collapse/expand-all.
   const [collapsed, setCollapsed] = useState(() => new Set())

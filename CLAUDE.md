@@ -22,12 +22,27 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
     linked by a shared `family` id.
   - Ids are stable kebab-case derived from paldb.cc internal codes — never key
     by display name.
-  - From Phase 3 on, this JSON is **generated** by `scripts/fetch-data.mjs`
-    (paldb.cc scrape) — regenerate, don't hand-edit. Until then it's a
-    hand-written sample.
-- **Icons:** local files only, `public/icons/<id>.webp` — never hotlink.
+  - This JSON is **generated** by `scripts/fetch-data.mjs` (`npm run fetch-data`,
+    paldb.cc scrape, ~1993 items) — regenerate after a game patch, don't
+    hand-edit. Scraping needs a browser `User-Agent` + `Referer` header; the
+    station-icon CDN path 403s bare requests.
+- **Icons:** local files only, `public/icons/<id>.webp` — never hotlink. The
+  browse grid renders ~1600 cards, so `<img>` must stay `loading="lazy"`
+  (eager loading pulls the whole ~14 MB icon set on first paint).
+- **Tree collapse state** lives in `App` keyed by node **path**
+  (`tree.js`: `ROOT_PATH`/`childPath`/`collapsiblePaths`), never by itemId —
+  the same ingredient appears at several positions in one tree and must fold
+  independently. Both tree views share that state.
+- **Git identity:** this is Kevin's *personal* project — commits must be
+  authored `Keisi <ls.azuelo@gmail.com>` (set in the repo's local git config),
+  never the work address. Pushes authenticate as the personal GitHub account.
 - **GitHub Pages base path:** production builds serve from `/CraftPal/`
   (`vite.config.js` sets `base` on build). Any runtime-constructed asset URL
   must be prefixed with `import.meta.env.BASE_URL` (see `ItemIcon.jsx`) —
   never a hardcoded leading `/`.
-- **Verify:** `npm run build` must pass before any commit.
+- **Verify:** `npm run build`, `npm test`, and `npm run validate` must pass
+  before any commit.
+- **Pages ordering gotcha:** if the repo is ever recreated, enable Pages
+  (`POST /repos/.../pages` `{"build_type":"workflow"}`) **before** the first
+  push — a workflow run that starts before Pages exists fails at
+  `actions/configure-pages` and skips the deploy. Re-running the run fixes it.

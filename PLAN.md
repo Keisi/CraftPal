@@ -255,6 +255,12 @@ Paltree/
 
 ## 7. Implementation phases
 
+**Status (2026-07-27): phases 1–4 all shipped** and live at
+https://keisi.github.io/CraftPal/. Post-phase work: compact indented tree
+view (default) + Compact/Diagram toggle + collapse/expand-all, lazy-loaded
+icons, and a crafting-tasks build list. The per-phase notes below are kept
+as the original plan of record.
+
 1. **Scaffold** — Vite + React + Tailwind; hand-written sample `items.json`
      covering one full multi-rarity weapon chain (Assault Rifle Common +
      Legendary → refined ingot → polymer → carbon fiber → raws) so the schema's
