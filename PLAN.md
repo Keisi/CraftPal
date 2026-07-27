@@ -276,10 +276,140 @@ as the original plan of record.
 
 Each phase is a natural commit/stopping point.
 
+## 8. Future — pal habitats / spawn locations (feasibility done 2026-07-27)
+
+**Verdict: portable, and reliably so — but by snapshotting a build artifact,
+not by calling an API.** Findings from probing https://palworld.gg/map:
+
+- It's a **Nuxt SSR app with no data API**. `/map/_payload.json` returns 69
+  bytes (empty), `__NUXT_DATA__` is i18n/site-config only, and
+  `/data/pals/en.json` 404s — that path is a build-time import, not a route.
+- **All map data is baked into one content-hashed client chunk** —
+  `/_nuxt/Ce88gNM6.js`, 1.46 MB on 2026-07-27.
+- **Habitat data shape:** one master object literal maps a pal's internal code
+  to a minified variable holding a flat point cloud, `[[x, y], ...]`. Verified
+  extraction: **239 pals, 54,811 points, 0 unresolved**, ~1.1 MB of JSON, using
+  a ~60-line parser (find the `wolf_dark:`-style anchor → walk the balanced
+  braces → resolve each `VAR=[...]` or `VAR=JSON.parse("...")` by bracket
+  matching). Some pals legitimately share an identical array (co-located
+  spawners), so duplicate point clouds are not a parser bug.
+- **Other marker sets in the same chunk** (same technique): `fastTravel`,
+  `tower`, `dungeon`, `note`, `effigy`, `egg`, `skillFruit`, plus an alpha-pal
+  array of `{x, y, pal, lv: [min, max]}`.
+- **Coordinate space:** raw world units. Observed extent
+  x ∈ [-1045845, 214637], y ∈ [-635335, 593451]. The site projects with
+  `l = (x + 1099400) / 1448800`, `k = (y + 724400) / 1448800` →
+  `[-256 + 256l, 256k]`, then a MapLibre Mercator unproject — i.e. the world is
+  a 1448800-unit square over x ∈ [-1099400, 349400], y ∈ [-724400, 724400].
+  That transform is all we need; we do not need MapLibre.
+- **What .gg does *not* have: day/night.** Its dataset is a single cloud per
+  pal. **paldb.cc has the opposite gap** — its pal pages carry day/night, level
+  ranges, and named zones (`green_A`, "Hillside Cavern") but **no
+  coordinates**. Best dataset = join the two on the pal's internal code
+  (`sheepball` = Lamball, `pinkcat` = Cattiva — both sites use the game codes,
+  but a mapping table is still needed).
+- **Base map:** their tiles are `/images/tiles/{z}/{x}/{y}.png`. Hotlinking
+  breaks our local-assets-only rule and mirroring the pyramid is a lot of
+  someone else's bandwidth for a personal toy — prefer one static map image
+  (or a plain coordinate plane) and draw points over it ourselves.
+- **Legal/politeness:** `robots.txt` is `Disallow:` (empty — nothing
+  disallowed) and there is no `/terms` page (404). The underlying facts are
+  Pocketpair's game data; the point clouds are palworld.gg's extraction of it.
+  Attribute palworld.gg in the UI, fetch once per game patch, never at runtime.
+
+**Fragility + the mitigation.** The chunk filename is content-hashed, so it
+changes on every deploy. Do **not** hardcode it: fetch `/map`, enumerate the
+`/_nuxt/*.js` it references, and pick the chunk containing the anchor. That
+resolver is the whole difference between "reliable" and "breaks silently".
+
+Planned work, when we do it:
+
+1. `scripts/fetch-habitats.mjs` — resolver + extractor + the world→normalized
+   transform above; writes `src/data/habitats.json` (snapshot + commit, same
+   discipline as `items.json`), with a hard error if the anchor isn't found.
+2. `scripts/fetch-pals.mjs` (paldb.cc, reuses the existing cache/throttle
+   plumbing) — pal id, name, icon, **drops**, day/night + level ranges.
+3. The actual feature: **item → which pals drop it → where they live.** That is
+   the only reason this belongs in a *crafting* app — it closes the loop on
+   "where do I farm this ingredient" for non-crafted materials.
+4. Render as a canvas/SVG overlay on one static map image; heat/points per pal.
+
+Model it as a **generic `sources.json`** (see §9), not a Palworld-shaped table —
+"this item comes from mob X / node Y / biome Z" is exactly the same question in
+Minecraft and No Man's Sky.
+
+## 9. Future — make it game-agnostic (port to NMS / Minecraft / …)
+
+Goal: the app is a **crafting-tree engine**; a game is *just* a JSON bundle.
+
+**Current state — better than expected.** The core is already data-driven:
+`tree.js`/`plan.js` only know `recipe.{ingredients,stations,yields}`, and every
+filter option list is derived from the loaded data at render time
+(`deriveCategories`/`deriveRarities`/`deriveStations`, `filter.js:180-211`) —
+no hardcoded item, category, or station lists anywhere. ~2.3k LOC of `src/`,
+most of it generic. The port is a refactor, not a rewrite.
+
+**The actual couplings, all of them:**
+
+| # | Coupling | Where |
+|---|---|---|
+| 1 | 5-tier Palworld rarity ladder + Tailwind class maps | `src/lib/rarity.js:6` (+3 style maps) |
+| 2 | `techLevel` as a named concept — sort label "Tech level", station ordering | `src/lib/filter.js:156-169,197-211`, `src/components/StationChip.jsx:6` |
+| 3 | `family` = "rarity variants of one weapon" | `src/lib/filter.js:32-78`, `RaritySwitcher.jsx` |
+| 4 | "station" as user-facing vocabulary ("Any station") | `src/components/ItemBrowser.jsx:205` |
+| 5 | Branding: title, `CraftPal` / "Palworld crafting-tree explorer", pkg name, `/CraftPal/` base | `index.html:7`, `src/App.jsx:376-377`, `package.json`, `vite.config.js` |
+| 6 | **One dataset bound at build time** — `data.js` static-imports the two JSONs and 6 components import that singleton directly | `src/lib/data.js:8-12`; `App.jsx:2`, `RawSummary.jsx:2`, `StationChip.jsx:1`, `TasksView.jsx:1`, `TreeNode.jsx:1`, `TreeRows.jsx:1` |
+| 7 | Scraper is paldb.cc end-to-end, writing fixed paths | `scripts/fetch-data.mjs:43-46,80-115` |
+| 8 | Icons share one flat namespace | `public/icons/<id>.webp` |
+
+(7) is fine and should stay that way — **the scraper is the per-game adapter**.
+Every game gets its own `scripts/fetch-<game>.mjs` emitting the common schema.
+
+**Target design:**
+
+- **`game.json` manifest per game** — id, display name, tagline, source
+  attribution, and the vocabulary/tier definitions:
+  `{ tiers: [{id, label, color}], labels: {station, tier, progression},
+  sorts: [...] }`. Colors are **tokens the app maps to classes**, never raw
+  Tailwind strings from data (data must not be able to inject classes).
+- **Rename to game-neutral domain terms:** `rarity` → `tier`,
+  `techLevel` → `progression` (generic ordered unlock number),
+  `family` → `variantGroup`, station label from the manifest
+  (Palworld "station", NMS "refiner", Minecraft "crafting block").
+- **Every game-specific field is optional, and its UI disappears when absent.**
+  Already the pattern for categories/rarities/stations — extend it to the
+  tier chips, the progression sort, and the variant switcher so a Minecraft
+  dataset (no tiers, no tech level) renders a clean UI with no dead controls.
+- **Layout:** `src/data/<game>/{game.json,items.json,stations.json,sources.json}`
+  and `public/icons/<game>/`.
+- **One selection point.** `src/lib/data.js` becomes the loader: `VITE_GAME`
+  build-time env (one Pages deploy per game, keeps the static-import bundling
+  and tree-shaking we have today) — or a lazy `import()` per game if we ever
+  want a single site with a game switcher. Prerequisite either way:
+  **stop importing the data singleton inside components** (coupling 6) — thread
+  `items`/`stations` through props or a context, or a runtime switch is
+  impossible.
+- **Schema v2 while we're in there:** `recipes[]` array instead of a single
+  `recipe` (Minecraft/NMS have far more alternates than Palworld — see §1's
+  Carbon Fiber note), plus the optional `sources` from §8.
+- **Validator becomes manifest-driven** — tier ids checked against the
+  manifest instead of a hardcoded ladder.
+- **Prove it with a fixture game.** Add a tiny synthetic non-Palworld dataset
+  and run the existing pure-logic suites against it; that's what stops
+  Palworld assumptions creeping back in.
+
+Sequence: manifest + renames → decouple components from `data.js` → loader +
+`VITE_GAME` → per-game icon namespace → fixture-game tests → second real game.
+
 ## Sources
 
 - paldb.cc — datamined items/recipes/icons: https://paldb.cc/en/Items ,
   example multi-rarity detail page: https://paldb.cc/en/Assault_Rifle ,
   icon CDN: `https://cdn.paldb.cc/image/Others/InventoryItemIcon/Texture/`
 - palworld.gg items (cross-check source): https://palworld.gg/items
+- palworld.gg interactive map (habitat/spawn source, §8):
+  https://palworld.gg/map — data lives in a hashed `/_nuxt/*.js` chunk, tiles at
+  `/images/tiles/{z}/{x}/{y}.png`
+- paldb.cc pal pages (day/night + level ranges + named zones, §8):
+  https://paldb.cc/en/Lamball
 - Community recipe JSON precedent: https://github.com/danaildichev/PalWorldResourceCalculator/
