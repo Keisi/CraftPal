@@ -44,14 +44,30 @@ describe('groupTypesByCategory', () => {
   });
 
   test('a type with no category falls back to "Other"', () => {
-    const groups = groupTypesByCategory([{ id: 'x', label: 'X', category: '', icon: 'x.webp' }], new Map());
+    const groups = groupTypesByCategory([{ id: 'x', label: 'X', category: '', icon: 'x.webp' }], new Map([['x', 1]]));
     assert.equal(groups[0].category, 'Other');
   });
 
-  test('every type carries its real count, including zero', () => {
+  test('every remaining type carries its real count', () => {
     const groups = groupTypesByCategory(TYPES, countMarkersByType(MARKERS));
     const alpha = groups.find((g) => g.category === 'Enemies').types[0];
     assert.equal(alpha.count, 1);
+  });
+
+  test('a type with zero markers is omitted — a dead control, per PLAN.md §9', () => {
+    const withDeadType = [...TYPES, { id: 'Cattiva Effigy', label: 'Cattiva Effigy', category: 'Locations', icon: 'e.webp' }];
+    const groups = groupTypesByCategory(withDeadType, countMarkersByType(MARKERS));
+    const locations = groups.find((g) => g.category === 'Locations');
+    assert.deepEqual(
+      locations.types.map((t) => t.id),
+      ['Fast Travel', 'Dungeon'],
+    );
+  });
+
+  test('a category whose every type is at zero is dropped entirely, not shown empty', () => {
+    const withEmptyCategory = [...TYPES, { id: 'World Tree Egg', label: 'World Tree Egg', category: 'Eggs', icon: 'f.webp' }];
+    const groups = groupTypesByCategory(withEmptyCategory, countMarkersByType(MARKERS));
+    assert.ok(!groups.some((g) => g.category === 'Eggs'));
   });
 });
 

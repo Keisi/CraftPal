@@ -58,6 +58,23 @@ const MAP_JSON_OUT = path.join(PALWORLD_DIR, 'data', 'map.json');
 const PUBLIC_MARKER_ICONS_DIR = path.join(PALWORLD_DIR, 'icons', 'markers');
 const PUBLIC_TILES_DIR = path.join(PALWORLD_DIR, 'tiles');
 
+// NOTE: don't try to resolve egg markers' `itemId` (e.g. "PalEgg_Dragon_01")
+// to a single CraftPal item and surface it as "Contains: X" — it looks like
+// a contained-item id but isn't one. An egg spawner rolls a LOOT TABLE of
+// several egg types, and different regions reuse the same itemId for
+// unrelated tables: the Feybreak marker (itemId PalEgg_Water_01) and the
+// Sakura marker (itemId PalEgg_Dragon_01) both point at spawner groups whose
+// real per-region tables were confirmed by fetching the spawner pages behind
+// their `href` codes — https://paldb.cc/en/tenraku_grade_01 (Feybreak) lists
+// Rocky/Frozen/Verdant/Dragon/Common/Damp/Scorching Egg, and
+// https://paldb.cc/en/grass_grade_01 (Grass) lists Common/Verdant/Frozen/
+// Scorching/Damp/Rocky Egg. So `itemId` is only the icon paldb chose for
+// that marker, not its contents — asserting one specific egg on all 1,786
+// egg markers would be confidently wrong, worse than showing nothing. A
+// genuinely honest "Contains one of: ..." would need scraping the ~7
+// spawner-group pages for their real tables — a real feature, but a
+// separate decision from this scraper pass.
+
 const BASE = 'https://paldb.cc';
 const MAP_DATA_URL = `${BASE}/js/map_data_en.js`;
 const CDN = 'https://cdn.paldb.cc';
@@ -317,6 +334,8 @@ function normalizeMarker(raw, perPixel) {
   // Tower boss flag, e.g. "EPalBossType::ForestBoss" — passed through verbatim.
   if (raw.boss) marker.boss = raw.boss;
   // Internal spawn-table item id (mostly egg spawners, e.g. "PalEgg_Dragon_01").
+  // Passed through verbatim, unresolved — see the NOTE above the icon-related
+  // constants: it's the icon paldb picked for this marker, not its contents.
   if (raw.itemId) marker.itemId = raw.itemId;
 
   return marker;

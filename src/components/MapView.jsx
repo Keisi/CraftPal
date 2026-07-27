@@ -295,6 +295,13 @@ export function MapView({ onBack, focusPalCode }) {
     () => groupTypesByCategory(mapState.data?.types ?? [], countsByType),
     [mapState.data, countsByType],
   );
+  // Layers actually shown (groupedTypes already dropped the dead, zero-marker
+  // legend entries) — the header count must match what's in the sidebar, not
+  // map.json's raw legend size.
+  const visibleLayerCount = useMemo(
+    () => groupedTypes.reduce((sum, group) => sum + group.types.length, 0),
+    [groupedTypes],
+  );
   const typesById = useMemo(() => new Map((mapState.data?.types ?? []).map((t) => [t.id, t])), [mapState.data]);
 
   const { dom: domMarkers, canvas: canvasMarkers } = useMemo(
@@ -419,7 +426,7 @@ export function MapView({ onBack, focusPalCode }) {
         <h2 className="text-lg font-semibold text-zinc-100">Map</h2>
         {mapState.status === 'ready' && (
           <span className="text-xs text-zinc-500">
-            {mapState.data.markers.length.toLocaleString()} markers, {mapState.data.types.length} layers
+            {mapState.data.markers.length.toLocaleString()} markers, {visibleLayerCount} layers
           </span>
         )}
         <div className="ml-auto">

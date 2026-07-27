@@ -212,8 +212,17 @@ function validatePals(gameId, palsPath, publicAssetDir, habitatsDir, habitatPoin
  * (skip, not fail). Marker-type icon paths are stored PUBLIC-root-relative
  * (e.g. "games/palworld/icons/markers/x.webp"), unlike item/station/pal icons
  * which are assetBase-relative — hence resolving against PUBLIC_DIR, not
- * publicAssetDir. */
-function validateMap(gameId, mapPath, errors) {
+ * publicAssetDir.
+ *
+ * No marker carries a resolved `item` today — fetch-map.mjs deliberately does
+ * NOT try to resolve egg markers' `itemId` to one CraftPal item, because an
+ * egg spawner rolls a loot table of several egg types rather than containing
+ * exactly one (see the NOTE in fetch-map.mjs for the evidence). This check is
+ * a no-op against the current dataset, kept for the future/no other game: IF
+ * a marker's `item` ever gets populated (a real per-region table, a different
+ * game's map data, ...), a dangling reference is a hard error, exactly like a
+ * dangling ingredient or pal-drop reference — not silently ignored. */
+function validateMap(gameId, mapPath, items, errors) {
   if (!existsSync(mapPath)) return { present: false, markerCount: 0 }
   const doc = loadJson(mapPath, `[${gameId}] map.json`, errors)
   if (!doc) return { present: true, markerCount: 0 }
@@ -226,6 +235,7 @@ function validateMap(gameId, mapPath, errors) {
 
   const typeIds = new Set(types.map((t) => t.id))
   const reportedBadTypes = new Set() // dedupe: one error per distinct undeclared type, not per marker
+  const reportedBadItems = new Set() // dedupe: one error per distinct unresolved item id, not per marker (a bad id can repeat hundreds of times, e.g. every egg spawner of that type)
   for (const [i, m] of markers.entries()) {
     if (!m.type) {
       errors.push(`[${gameId}] map.json: marker[${i}] missing type`)
@@ -243,6 +253,10 @@ function validateMap(gameId, mapPath, errors) {
     }
     if (m.onlyTime !== undefined && m.onlyTime !== 'day' && m.onlyTime !== 'night') {
       errors.push(`[${gameId}] map.json: marker[${i}] has invalid onlyTime "${m.onlyTime}" (expected "day" or "night")`)
+    }
+    if (m.item != null && !(m.item in items) && !reportedBadItems.has(m.item)) {
+      reportedBadItems.add(m.item)
+      errors.push(`[${gameId}] map.json: marker references unknown item "${m.item}" (e.g. marker[${i}])`)
     }
   }
 
@@ -338,7 +352,7 @@ function validateGame(gameId, errors) {
   )
   if (!palsPresent) skipped.push('pals.json')
 
-  const { present: mapPresent, markerCount } = validateMap(gameId, mapPath, errors)
+  const { present: mapPresent, markerCount } = validateMap(gameId, mapPath, items, errors)
   if (!mapPresent) skipped.push('map.json')
 
   return { itemCount: Object.keys(items).length, stationCount: Object.keys(stations).length, palCount, habitatFileCount, markerCount, skipped }

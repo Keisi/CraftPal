@@ -9,6 +9,16 @@
  * group's types sorted by marker count descending (busiest layer first) —
  * the shape the layer-toggle panel renders directly.
  *
+ * A type with zero real markers is a dead control (it can never display
+ * anything, e.g. legend entries for a marker set the current map patch
+ * doesn't place — "Cattiva Effigy", "World Tree Egg", ...) so it's omitted
+ * entirely, and a category left with no types after that filter is dropped
+ * too, rather than showing a bare heading over nothing. This is the same
+ * "optional degrades to no UI, not empty UI" principle PLAN.md §9 already
+ * applies to tier chips and the station dropdown. Derived from the real
+ * counts every time — never a hardcoded list of "known dead" type ids,
+ * since which types are unused changes with every game patch.
+ *
  * @param {Array<{id: string, label: string, category: string, icon: string}>} types
  * @param {Map<string, number>} countsByType
  * @returns {Array<{category: string, types: Array<{id, label, icon, count}>}>} sorted by category name.
@@ -16,9 +26,11 @@
 export function groupTypesByCategory(types, countsByType) {
   const byCategory = new Map();
   for (const type of types) {
+    const count = countsByType.get(type.id) ?? 0;
+    if (count === 0) continue;
     const category = type.category || 'Other';
     const list = byCategory.get(category) ?? [];
-    list.push({ id: type.id, label: type.label, icon: type.icon, count: countsByType.get(type.id) ?? 0 });
+    list.push({ id: type.id, label: type.label, icon: type.icon, count });
     byCategory.set(category, list);
   }
   return [...byCategory.entries()]
