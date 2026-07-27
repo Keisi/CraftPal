@@ -1,37 +1,24 @@
-// Per-game loader + registry (PLAN.md §9). Selects a game's manifest +
-// dataset at build time from VITE_GAME (default "palworld") via static
-// imports, so Vite still bundles + tree-shakes per-game builds — adding a
-// second game means adding a registry entry here, not touching any
-// component. On-disk shape quirks (items.json nests its map under `.items`;
-// stations.json is already a flat map) are insulated in this one place.
+// Per-game loader (PLAN.md §9). Re-exports whichever game's data
+// vite.config.js aliased `virtual:game-data` to, based on the VITE_GAME
+// build-time env (default "palworld") — so Vite still bundles + tree-shakes
+// per-game builds. Adding a second game means adding
+// src/data/<game>/index.js (its own small normalizer for on-disk shape
+// quirks — items.json nests its map under `.items`, etc.) plus one line in
+// vite.config.js's alias map; this file itself never changes.
+//
+// Why the game switch lives in vite.config.js rather than as an object
+// literal here (`REGISTRY = { palworld: {...}, minecraft: {...} }` with
+// every game's JSON statically imported unconditionally): measured directly
+// — that shape grew the DEFAULT Palworld build by +253 KB (+25%) the moment
+// a second game was registered, because bundlers don't eliminate an object
+// property just because nothing reads it via a dynamic `REGISTRY[key]`
+// lookup (that needs whole-module reachability, not property-level
+// analysis). Aliasing to only the selected game's index.js means the other
+// game's JSON is never even in the resolved module graph for a given
+// build — provably, not "hopefully tree-shaken."
 //
 // This module is imported in exactly ONE place — src/GameProvider.jsx —
 // which threads the result through React context (src/lib/GameContext.js) so
 // no component imports a dataset singleton directly (coupling #6).
 
-import palworldGame from '../data/palworld/game.json';
-import palworldItemsDoc from '../data/palworld/items.json';
-import palworldStationsDoc from '../data/palworld/stations.json';
-import palworldPalsDoc from '../data/palworld/pals.json';
-
-const REGISTRY = {
-  palworld: {
-    manifest: palworldGame,
-    items: palworldItemsDoc.items,
-    stations: palworldStationsDoc,
-    // Small, bundled per-pal index (name/icon/drops/habitat summary) — the
-    // "Dropped by" reverse index (src/lib/drops.js) is built from this. The
-    // *heavy* per-pal point clouds and map.json stay lazy-fetched
-    // (src/lib/mapData.js), never static-imported like this.
-    pals: palworldPalsDoc.pals,
-  },
-};
-
-const DEFAULT_GAME = 'palworld';
-const requestedGame = import.meta.env.VITE_GAME || DEFAULT_GAME;
-const selected = REGISTRY[requestedGame] ?? REGISTRY[DEFAULT_GAME];
-
-export const manifest = selected.manifest;
-export const items = selected.items;
-export const stations = selected.stations;
-export const pals = selected.pals;
+export { manifest, items, stations, pals } from 'virtual:game-data';

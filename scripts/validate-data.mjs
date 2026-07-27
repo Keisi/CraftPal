@@ -68,9 +68,27 @@ function discoverGameDirs() {
 /** Resolve an icon path against a game's public asset folder
  * (public/<assetBase>/<icon>), the same resolution ItemIcon.jsx does at
  * runtime (minus BASE_URL, which is a deploy-time prefix, not a filesystem
- * path). */
-function checkIcon(errors, kind, gameId, publicAssetDir, id, icon) {
+ * path).
+ *
+ * `optional` (Minecraft-driven addition, PLAN.md §9): when true, a genuinely
+ * ABSENT icon is not an error, only counted (via the `missingIconCounter`
+ * callback) — it degrades exactly the way ItemIcon.jsx already renders it at
+ * runtime (a "no icon" placeholder box), so the validator was stricter than
+ * the app itself. Minecraft's real scrape has ~60 items (entity-rendered
+ * blocks — chests, beds, campfire, banners, ... — whose real textures live
+ * in bespoke per-part atlases under textures/entity/, not a single
+ * representative file fetch-minecraft.mjs chases) with no resolvable icon at
+ * all; Palworld's own item/station icons are still effectively 100%
+ * complete in practice, so this only relaxes a case that was previously
+ * unreachable for it. An icon path that IS present but points at a file that
+ * doesn't exist remains a hard error unconditionally — that's a real broken
+ * reference, never legitimate for either game. */
+function checkIcon(errors, kind, gameId, publicAssetDir, id, icon, { optional = false, missingIconCounter } = {}) {
   if (!icon) {
+    if (optional) {
+      missingIconCounter?.()
+      return
+    }
     errors.push(`[${gameId}] ${kind} "${id}": missing icon path`)
     return
   }
@@ -362,7 +380,17 @@ function validateGame(gameId, errors) {
   const manifest = loadJson(manifestPath, `[${gameId}] game.json`, errors)
   const itemsDoc = loadJson(itemsPath, `[${gameId}] items.json`, errors)
   if (!manifest || !itemsDoc) {
-    return { itemCount: 0, stationCount: 0, palCount: 0, habitatFileCount: 0, markerCount: 0, tileZoomCounts: null, skipped: [] }
+    return {
+      itemCount: 0,
+      stationCount: 0,
+      palCount: 0,
+      habitatFileCount: 0,
+      markerCount: 0,
+      tileZoomCounts: null,
+      skipped: [],
+      itemsMissingIcon: 0,
+      stationsMissingIcon: 0,
+    }
   }
 
   // stations.json is optional — a game with no crafting-station concept can
@@ -407,11 +435,21 @@ function validateGame(gameId, errors) {
   }
 
   // 4. Every item/station icon path must resolve under public/<assetBase>/.
+  // A genuinely absent icon is legal (not an error) here — see checkIcon's
+  // doc comment — but still counted so it's visible in the OK summary line.
+  let itemsMissingIcon = 0
+  let stationsMissingIcon = 0
   for (const [id, item] of Object.entries(items)) {
-    checkIcon(errors, 'item', gameId, publicAssetDir, id, item.icon)
+    checkIcon(errors, 'item', gameId, publicAssetDir, id, item.icon, {
+      optional: true,
+      missingIconCounter: () => itemsMissingIcon++,
+    })
   }
   for (const [id, station] of Object.entries(stations)) {
-    checkIcon(errors, 'station', gameId, publicAssetDir, id, station.icon)
+    checkIcon(errors, 'station', gameId, publicAssetDir, id, station.icon, {
+      optional: true,
+      missingIconCounter: () => stationsMissingIcon++,
+    })
   }
 
   // 5. Generated datasets (§8) — each optional per game; absent = skip, not fail.
@@ -453,6 +491,8 @@ function validateGame(gameId, errors) {
     markerCount,
     tileZoomCounts: tilesPresent ? tileZoomCounts : null,
     skipped,
+    itemsMissingIcon,
+    stationsMissingIcon,
   }
 }
 
@@ -467,16 +507,30 @@ let totalStations = 0
 let totalPals = 0
 let totalHabitatFiles = 0
 let totalMarkers = 0
+let totalItemsMissingIcon = 0
+let totalStationsMissingIcon = 0
 const skippedByGame = [] // "<gameId>: <dataset>, <dataset>"
 const tileSummaryByGame = [] // "<gameId>: z0 1/1, z1 4/4, ..."
 
 for (const gameId of gameDirs) {
-  const { itemCount, stationCount, palCount, habitatFileCount, markerCount, tileZoomCounts, skipped } = validateGame(gameId, errors)
+  const {
+    itemCount,
+    stationCount,
+    palCount,
+    habitatFileCount,
+    markerCount,
+    tileZoomCounts,
+    skipped,
+    itemsMissingIcon,
+    stationsMissingIcon,
+  } = validateGame(gameId, errors)
   totalItems += itemCount
   totalStations += stationCount
   totalPals += palCount
   totalHabitatFiles += habitatFileCount
   totalMarkers += markerCount
+  totalItemsMissingIcon += itemsMissingIcon
+  totalStationsMissingIcon += stationsMissingIcon
   if (skipped.length > 0) skippedByGame.push(`${gameId}: ${skipped.join(', ')}`)
   if (tileZoomCounts) {
     const perZoom = Object.entries(tileZoomCounts)
@@ -494,9 +548,15 @@ if (errors.length > 0) {
 const skippedNote =
   skippedByGame.length > 0 ? ` Skipped (not present): ${skippedByGame.join('; ')}.` : ' No datasets skipped.'
 const tilesNote = tileSummaryByGame.length > 0 ? ` Tiles: ${tileSummaryByGame.join('; ')}.` : ''
+const totalMissingIcon = totalItemsMissingIcon + totalStationsMissingIcon
+const missingIconNote =
+  totalMissingIcon > 0
+    ? ` ${totalMissingIcon} item/station icon(s) legitimately absent (${totalItemsMissingIcon} items, ${totalStationsMissingIcon} stations) — allowed, not an error (see checkIcon).`
+    : ''
 
 console.log(
   `validate-data: OK — ${gameDirs.length} game${gameDirs.length === 1 ? '' : 's'} (${gameDirs.join(', ')}), ` +
     `${totalItems} items, ${totalStations} stations, ${totalPals} pals, ${totalHabitatFiles} habitat files, ` +
-    `${totalMarkers} map markers, all references + icons resolve.${tilesNote}${skippedNote}`,
+    `${totalMarkers} map markers, all references resolve and every present icon resolves to a real file.` +
+    `${missingIconNote}${tilesNote}${skippedNote}`,
 )

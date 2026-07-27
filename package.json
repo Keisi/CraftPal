@@ -13,6 +13,7 @@
     "fetch-data": "node scripts/fetch-data.mjs",
     "fetch-map": "node scripts/fetch-map.mjs",
     "fetch-pals": "node scripts/fetch-pals.mjs",
+    "fetch-minecraft": "node scripts/fetch-minecraft.mjs",
     "crosscheck": "node scripts/crosscheck-palworldgg.mjs"
   },
   "dependencies": {

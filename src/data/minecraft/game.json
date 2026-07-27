@@ -1,0 +1,19 @@
+{
+  "id": "minecraft",
+  "name": "CraftPal",
+  "tagline": "Minecraft crafting-tree explorer",
+  "assetBase": "games/minecraft/",
+  "datasets": [],
+  "attribution": [
+    { "label": "misode/mcmeta", "url": "https://github.com/misode/mcmeta" },
+    { "label": "Mojang / Minecraft", "url": "https://www.minecraft.net" }
+  ],
+  "labels": {
+    "station": "crafting station",
+    "stationPlural": "crafting stations",
+    "tier": "tier",
+    "progression": "progression"
+  },
+  "tiers": [],
+  "sorts": ["name", "category"]
+}

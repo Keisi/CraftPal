@@ -1,0 +1,34 @@
+{
+  "crafting_table": {
+    "name": "Crafting Table",
+    "icon": "icons/crafting_table.png"
+  },
+  "furnace": {
+    "name": "Furnace",
+    "icon": "icons/furnace.png"
+  },
+  "blast_furnace": {
+    "name": "Blast Furnace",
+    "icon": "icons/blast_furnace.png"
+  },
+  "smoker": {
+    "name": "Smoker",
+    "icon": "icons/smoker.png"
+  },
+  "campfire": {
+    "name": "Campfire",
+    "icon": "icons/campfire.png"
+  },
+  "stonecutter": {
+    "name": "Stonecutter",
+    "icon": "icons/stonecutter.png"
+  },
+  "smithing_table": {
+    "name": "Smithing Table",
+    "icon": "icons/smithing_table.png"
+  },
+  "brewing_stand": {
+    "name": "Brewing Stand",
+    "icon": "icons/brewing_stand.png"
+  }
+}
