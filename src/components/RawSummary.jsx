@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { items } from '../lib/data.js';
+import { useGame } from '../lib/GameContext.js';
 import { aggregateRaw } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 
@@ -12,6 +12,7 @@ import { ItemIcon } from './ItemIcon.jsx';
 // @param {{itemId: string, qty: number}[]} entries - already sorted by caller.
 // @param {string} [title]
 export function RawMaterialsStrip({ entries, title = 'Raw materials' }) {
+  const { items } = useGame();
   if (entries.length === 0) return null;
 
   return (

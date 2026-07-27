@@ -1,11 +1,12 @@
-import { items } from '../lib/data.js';
+import { useGame } from '../lib/GameContext.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
-import { RarityBadge } from './ItemBrowser.jsx';
+import { TierBadge } from './ItemBrowser.jsx';
 import { RawMaterialsStrip } from './RawSummary.jsx';
 
 // One queued target: icon, name, editable qty, remove button.
 function TargetRow({ task, onQtyChange, onRemove }) {
+  const { items, manifest } = useGame();
   const item = items[task.itemId];
   const name = item?.name ?? task.itemId;
   // A batch recipe can only be run whole (a craft of ammo yields 50; the game
@@ -21,7 +22,7 @@ function TargetRow({ task, onQtyChange, onRemove }) {
 
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
         <span className="truncate font-medium text-zinc-100">{name}</span>
-        <RarityBadge rarity={item?.rarity} />
+        <TierBadge tierId={item?.tier} tiers={manifest.tiers} />
         {isBatch && (
           <span className="text-xs text-zinc-500">
             {yieldsPerCraft.toLocaleString()} per craft = {task.qty.toLocaleString()} total
@@ -92,6 +93,7 @@ function TargetList({ tasks, onQtyChange, onRemove, onClearAll }) {
 // Ticked steps are visibly de-emphasised (dimmed + strikethrough) but stay in
 // place — the order doesn't change on tick.
 function PlanStep({ index, step, done, onToggle }) {
+  const { items } = useGame();
   const item = items[step.itemId];
   const name = item?.name ?? step.itemId;
   const yieldsPerCraft = step.yields ?? 1;

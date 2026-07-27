@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { items, stations } from './lib/data.js'
+import { useGame } from './lib/GameContext.js'
 import { buildTree, collapsiblePaths } from './lib/tree.js'
 import { craftPlan } from './lib/plan.js'
 import { loadJSON, saveJSON } from './lib/storage.js'
 import { CraftTree } from './components/CraftTree.jsx'
 import { RawSummary } from './components/RawSummary.jsx'
-import { ItemBrowser, RarityBadge } from './components/ItemBrowser.jsx'
-import { RaritySwitcher } from './components/RaritySwitcher.jsx'
+import { ItemBrowser, TierBadge } from './components/ItemBrowser.jsx'
+import { VariantSwitcher } from './components/VariantSwitcher.jsx'
 import { TasksView } from './components/TasksView.jsx'
 
 // Diagram first — it's the default view, and the toggle order mirrors that.
@@ -27,7 +27,7 @@ const clampZoom = (value) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(va
 const DEFAULT_BROWSE_FILTERS = {
   search: '',
   category: null,
-  rarity: null,
+  tier: null,
   craftableOnly: false,
   station: '',
   sortKey: 'name',
@@ -43,13 +43,13 @@ const PROGRESS_KEY = 'craftpal.taskProgress'
 // A batch recipe can only be run whole — the game has no way to craft a
 // single round of ammo when a craft yields 50 — so a target quantity is
 // always rounded up to a whole number of crafts.
-function wholeBatches(itemId, qty) {
+function wholeBatches(items, itemId, qty) {
   const yieldsPerCraft = items[itemId]?.recipe?.yields ?? 1
   if (yieldsPerCraft <= 1) return qty
   return Math.ceil(qty / yieldsPerCraft) * yieldsPerCraft
 }
 
-function sanitizeTasks(value) {
+function sanitizeTasks(items, value) {
   if (!Array.isArray(value)) return []
   const out = []
   for (const entry of value) {
@@ -111,6 +111,8 @@ function ToolbarButton({ children, onClick, active = false, title, disabled = fa
 function TreeHeader({
   item,
   itemId,
+  items,
+  manifest,
   qty,
   onQtyChange,
   onBack,
@@ -138,10 +140,10 @@ function TreeHeader({
 
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold text-zinc-100">{item.name}</h2>
-        <RarityBadge rarity={item.rarity} />
+        <TierBadge tierId={item.tier} tiers={manifest.tiers} />
       </div>
 
-      <RaritySwitcher items={items} currentId={itemId} onSelect={onSelectVariant} />
+      <VariantSwitcher items={items} tiers={manifest.tiers} currentId={itemId} onSelect={onSelectVariant} />
 
       <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-1">
@@ -228,6 +230,7 @@ function TreeHeader({
 }
 
 function App() {
+  const { items, stations, manifest } = useGame()
   const [selectedId, setSelectedId] = useState(null)
   const [qty, setQty] = useState(1)
   const [view, setView] = useState('diagram')
@@ -242,7 +245,7 @@ function App() {
   // per-step "done" tick keyed by step itemId — both loaded once (lazily, so
   // this only ever reads localStorage on first mount) and sanitized so a
   // corrupt/hand-edited value resets instead of throwing.
-  const [tasks, setTasks] = useState(() => sanitizeTasks(loadJSON(TASKS_KEY, [])))
+  const [tasks, setTasks] = useState(() => sanitizeTasks(items, loadJSON(TASKS_KEY, [])))
   const [progress, setProgress] = useState(() => sanitizeProgress(loadJSON(PROGRESS_KEY, {})))
 
   useEffect(() => {
@@ -260,21 +263,21 @@ function App() {
     const amount = Number.isFinite(addQty) && addQty >= 1 ? Math.floor(addQty) : 1
     setTasks((current) => {
       const index = current.findIndex((task) => task.itemId === itemId)
-      if (index === -1) return [...current, { itemId, qty: wholeBatches(itemId, amount) }]
+      if (index === -1) return [...current, { itemId, qty: wholeBatches(items, itemId, amount) }]
       const next = [...current]
-      next[index] = { ...next[index], qty: wholeBatches(itemId, next[index].qty + amount) }
+      next[index] = { ...next[index], qty: wholeBatches(items, itemId, next[index].qty + amount) }
       return next
     })
-  }, [])
+  }, [items])
 
   const updateTaskQty = useCallback((itemId, newQty) => {
     const amount = Number.isFinite(newQty) && newQty >= 1 ? Math.floor(newQty) : 1
     setTasks((current) =>
       current.map((task) =>
-        task.itemId === itemId ? { ...task, qty: wholeBatches(itemId, amount) } : task,
+        task.itemId === itemId ? { ...task, qty: wholeBatches(items, itemId, amount) } : task,
       ),
     )
-  }, [])
+  }, [items])
 
   const removeTask = useCallback((itemId) => {
     setTasks((current) => current.filter((task) => task.itemId !== itemId))
@@ -287,7 +290,7 @@ function App() {
   }, [])
 
   // Ordered, dependency-safe craft plan for the whole task list (src/lib/plan.js).
-  const plan = useMemo(() => craftPlan(items, tasks), [tasks])
+  const plan = useMemo(() => craftPlan(items, tasks), [items, tasks])
 
   const selectedItem = selectedId ? items[selectedId] : null
 
@@ -296,7 +299,7 @@ function App() {
   // RawSummary (aggregates it) instead of each recomputing buildTree itself.
   const tree = useMemo(
     () => (selectedId ? buildTree(items, selectedId, qty) : null),
-    [selectedId, qty],
+    [items, selectedId, qty],
   )
 
   const toggleCollapsed = useCallback((path) => {
@@ -315,9 +318,9 @@ function App() {
     setShowTasks(false)
   }
 
-  // Rarity switcher (PLAN.md §5): swap the selected variant but deliberately
-  // leave qty untouched. Paths are position-based, so a different variant's
-  // recipe would fold the wrong rows — reset.
+  // Variant switcher (PLAN.md §5/§9): swap the selected variant but
+  // deliberately leave qty untouched. Paths are position-based, so a
+  // different variant's recipe would fold the wrong rows — reset.
   function handleSelectVariant(id) {
     setSelectedId(id)
     setCollapsed(new Set())
@@ -344,6 +347,8 @@ function App() {
         <TreeHeader
           item={selectedItem}
           itemId={selectedId}
+          items={items}
+          manifest={manifest}
           qty={qty}
           onQtyChange={setQty}
           onBack={() => setSelectedId(null)}
@@ -373,8 +378,8 @@ function App() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="flex flex-wrap items-center gap-4 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">CraftPal</h1>
-          <p className="text-sm text-zinc-400">Palworld crafting-tree explorer</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{manifest.name}</h1>
+          <p className="text-sm text-zinc-400">{manifest.tagline}</p>
         </div>
 
         <div className="ml-auto">
@@ -385,6 +390,7 @@ function App() {
       <ItemBrowser
         items={items}
         stations={stations}
+        manifest={manifest}
         onSelect={handleSelect}
         onAddTask={(id) => addTask(id, 1)}
         filters={browseFilters}

@@ -1,19 +1,32 @@
 import { useMemo } from 'react';
 import { ItemIcon } from './ItemIcon.jsx';
-import { rarityBadgeClass, rarityDotClass } from '../lib/rarity.js';
+import { findTier, tierBadgeClass, tierDotClass } from '../lib/tier.js';
 import {
-  groupFamilies,
+  groupVariants,
   filterEntries,
-  SORTS,
   deriveCategories,
-  deriveRarities,
+  deriveTiers,
   deriveStations,
+  deriveSorts,
 } from '../lib/filter.js';
 
-export function RarityBadge({ rarity }) {
+// Capitalizes a manifest label word ("station" -> "Station"). Manifest
+// labels read lowercase inline ("Any station"), but a heading/standalone
+// <label> needs the leading capital.
+const capitalize = (word) => {
+  const str = String(word ?? '');
+  return str ? str[0].toUpperCase() + str.slice(1) : str;
+};
+
+// The tier badge/chip is the one dead control that must vanish per-ITEM (not
+// just per-dataset): an item with no `tier` at all renders nothing, rather
+// than a meaningless "undefined" pill.
+export function TierBadge({ tierId, tiers }) {
+  if (!tierId) return null;
+  const tier = findTier(tiers, tierId);
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${rarityBadgeClass(rarity)}`}>
-      {rarity}
+    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${tierBadgeClass(tier?.color)}`}>
+      {tier?.label ?? tierId}
     </span>
   );
 }
@@ -30,34 +43,37 @@ export function CategoryBadge({ category }) {
   );
 }
 
-// Small rarity dots on a collapsed family card (PLAN.md §5) — one dot per
-// variant that actually exists in the data, in rarity order.
-function VariantDots({ variants }) {
+// Small tier dots on a collapsed variant-group card (PLAN.md §5) — one dot
+// per variant that actually exists in the data, in tier order.
+function VariantDots({ variants, tiers }) {
   return (
-    <div className="flex items-center gap-1" aria-label="Available rarities">
-      {variants.map(({ id, item }) => (
-        <span
-          key={id}
-          title={`${item.name} (${item.rarity})`}
-          className={`h-2.5 w-2.5 rounded-full ${rarityDotClass(item.rarity)}`}
-        />
-      ))}
+    <div className="flex items-center gap-1" aria-label="Available variants">
+      {variants.map(({ id, item }) => {
+        const tier = findTier(tiers, item.tier);
+        return (
+          <span
+            key={id}
+            title={tier ? `${item.name} (${tier.label})` : item.name}
+            className={`h-2.5 w-2.5 rounded-full ${tierDotClass(tier?.color)}`}
+          />
+        );
+      })}
     </div>
   );
 }
 
-// One card per browser entry. Family-collapsed entries show the base
-// (lowest-rarity) variant plus rarity dots for the rest; clicking always
-// opens the entry's `id`, which for a family is the base variant (PLAN.md
-// §5: "clicking it opens the tree of the base (common) variant").
+// One card per browser entry. Variant-group entries show the base
+// (lowest-tier) variant plus tier dots for the rest; clicking always opens
+// the entry's `id`, which for a group is the base variant (PLAN.md §5:
+// "clicking it opens the tree of the base (common) variant").
 //
 // The "+" button (crafting-tasks feature) adds that same base variant to the
 // task list at qty 1. It sits on top of the card's own click-to-open handler,
 // so both the click AND the Enter/Space keyboard-activation path must stop
 // propagation — otherwise activating "+" would also fire the card's onSelect
 // and jump straight to the tree view.
-function ItemCard({ entry, onSelect, onAddTask }) {
-  const { id, item, isFamily, variants } = entry;
+function ItemCard({ entry, tiers, onSelect, onAddTask }) {
+  const { id, item, isVariantGroup, variants } = entry;
 
   return (
     <div
@@ -94,9 +110,9 @@ function ItemCard({ entry, onSelect, onAddTask }) {
           <span className="truncate font-medium text-zinc-100">{item.name}</span>
           <div className="flex flex-wrap items-center gap-1.5">
             <CategoryBadge category={item.category} />
-            <RarityBadge rarity={item.rarity} />
+            <TierBadge tierId={item.tier} tiers={tiers} />
           </div>
-          {isFamily && <VariantDots variants={variants} />}
+          {isVariantGroup && <VariantDots variants={variants} tiers={tiers} />}
         </div>
       </div>
     </div>
@@ -120,56 +136,63 @@ function Chip({ active, onClick, children }) {
   );
 }
 
-function RarityChip({ rarity, active, onClick }) {
+function TierChip({ tier, active, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-opacity ${rarityBadgeClass(rarity)} ${
+      className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize transition-opacity ${tierBadgeClass(tier.color)} ${
         active ? 'opacity-100 ring-2 ring-zinc-100 ring-offset-1 ring-offset-zinc-950' : 'opacity-50 hover:opacity-90'
       }`}
     >
-      {rarity}
+      {tier.label}
     </button>
   );
 }
 
-// Searchable, sortable, filterable item browser (PLAN.md §5 / Phase 4).
-// Every option list (categories, rarities, stations) is derived from the
-// loaded `items`/`stations` at render time via src/lib/filter.js — never
-// hardcoded — so this works identically against the 16-item sample and the
-// eventual ~600+-item scrape. Family variants (PLAN.md §1) collapse to one
-// card with rarity dots.
+// Searchable, sortable, filterable item browser (PLAN.md §5 / §9, Phase 4).
+// Every option list (categories, tiers, stations, sorts) is derived from the
+// loaded `items`/`stations`/`manifest` at render time via src/lib/filter.js —
+// never hardcoded — so this works identically against the 16-item sample,
+// the full ~2000-item Palworld scrape, and a hypothetical game with no tiers/
+// progression/stations at all (every optional control below simply doesn't
+// render). Variant groups (PLAN.md §1/§9) collapse to one card with tier dots.
 // Filter/sort state is owned by App (see DEFAULT_BROWSE_FILTERS) rather than
 // held locally: opening an item unmounts the browser, and losing the filters
 // on every back-navigation made browsing a 1600-card grid painful.
-export function ItemBrowser({ items, stations, onSelect, onAddTask, filters, onFiltersChange }) {
-  const { search, category, rarity, craftableOnly, station, sortKey } = filters;
+export function ItemBrowser({ items, stations, manifest, onSelect, onAddTask, filters, onFiltersChange }) {
+  const { search, category, tier, craftableOnly, station, sortKey } = filters;
   const setField = (key, value) => onFiltersChange({ ...filters, [key]: value });
 
-  const categories = useMemo(() => deriveCategories(items), [items]);
-  const rarities = useMemo(() => deriveRarities(items), [items]);
-  const stationOptions = useMemo(() => deriveStations(items, stations), [items, stations]);
+  const labels = manifest.labels ?? {};
+  // `?? []` would otherwise build a fresh array every render whenever
+  // manifest.tiers is absent, defeating the useMemo below it depends on.
+  const tierDefs = useMemo(() => manifest.tiers ?? [], [manifest]);
 
-  const entries = useMemo(() => groupFamilies(items), [items]);
+  const categories = useMemo(() => deriveCategories(items), [items]);
+  const tiers = useMemo(() => deriveTiers(items, tierDefs), [items, tierDefs]);
+  const stationOptions = useMemo(() => deriveStations(items, stations), [items, stations]);
+  const sorts = useMemo(() => deriveSorts(items, manifest), [items, manifest]);
+
+  const entries = useMemo(() => groupVariants(items, tierDefs), [items, tierDefs]);
 
   const filtered = useMemo(
-    () => filterEntries(entries, { search, category, rarity, craftableOnly, station }),
-    [entries, search, category, rarity, craftableOnly, station],
+    () => filterEntries(entries, { search, category, tier, craftableOnly, station }),
+    [entries, search, category, tier, craftableOnly, station],
   );
 
   const sorted = useMemo(() => {
-    const compare = SORTS[sortKey]?.compare ?? SORTS.name.compare;
+    const compare = sorts[sortKey]?.compare ?? sorts.name.compare;
     return [...filtered].sort(compare);
-  }, [filtered, sortKey]);
+  }, [filtered, sorts, sortKey]);
 
   function toggleCategory(value) {
     setField('category', category === value ? null : value);
   }
 
-  function toggleRarity(value) {
-    setField('rarity', rarity === value ? null : value);
+  function toggleTier(value) {
+    setField('tier', tier === value ? null : value);
   }
 
   return (
@@ -195,36 +218,40 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask, filters, onF
             Craftable only
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-zinc-400">
-            Station
-            <select
-              value={station}
-              onChange={(event) => setField('station', event.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
-            >
-              <option value="">Any station</option>
-              {stationOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {stationOptions.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-zinc-400">
+              {capitalize(labels.station ?? 'station')}
+              <select
+                value={station}
+                onChange={(event) => setField('station', event.target.value)}
+                className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              >
+                <option value="">Any {labels.station ?? 'station'}</option>
+                {stationOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-          <label className="sm:ml-auto flex items-center gap-2 text-sm text-zinc-400">
-            Sort
-            <select
-              value={sortKey}
-              onChange={(event) => setField('sortKey', event.target.value)}
-              className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
-            >
-              {Object.entries(SORTS).map(([key, { label }]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {Object.keys(sorts).length > 1 && (
+            <label className="sm:ml-auto flex items-center gap-2 text-sm text-zinc-400">
+              Sort
+              <select
+                value={sortKey}
+                onChange={(event) => setField('sortKey', event.target.value)}
+                className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              >
+                {Object.entries(sorts).map(([key, { label }]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {categories.length > 0 && (
@@ -240,13 +267,13 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask, filters, onF
           </div>
         )}
 
-        {rarities.length > 0 && (
+        {tiers.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Rarity
+              {capitalize(labels.tier ?? 'tier')}
             </span>
-            {rarities.map((r) => (
-              <RarityChip key={r} rarity={r} active={rarity === r} onClick={() => toggleRarity(r)} />
+            {tiers.map((t) => (
+              <TierChip key={t.id} tier={t} active={tier === t.id} onClick={() => toggleTier(t.id)} />
             ))}
           </div>
         )}
@@ -264,7 +291,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask, filters, onF
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {sorted.map((entry) => (
-              <ItemCard key={entry.id} entry={entry} onSelect={onSelect} onAddTask={onAddTask} />
+              <ItemCard key={entry.id} entry={entry} tiers={tierDefs} onSelect={onSelect} onAddTask={onAddTask} />
             ))}
           </div>
         )}

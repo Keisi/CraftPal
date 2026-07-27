@@ -204,7 +204,7 @@ describe('craftPlan', () => {
 });
 
 describe('real data: Advanced Arrow (the user\'s own example)', () => {
-  const dataPath = path.join(__dirname, '..', 'data', 'items.json');
+  const dataPath = path.join(__dirname, '..', 'data', 'palworld', 'items.json');
   const { items } = JSON.parse(readFileSync(dataPath, 'utf8'));
 
   // Hand derivation from src/data/items.json (2026-07-27 scrape):

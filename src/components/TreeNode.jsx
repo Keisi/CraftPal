@@ -1,8 +1,8 @@
-import { items } from '../lib/data.js';
+import { useGame } from '../lib/GameContext.js';
 import { childPath } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
-import { rarityBorderClass } from '../lib/rarity.js';
+import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Per-node collapse (Phase 4, PLAN.md §5): clicking a node card that has
 // children folds/unfolds its subtree. View-only — the qty badge is always
@@ -10,9 +10,10 @@ import { rarityBorderClass } from '../lib/rarity.js';
 // never has to recompute anything. Collapse state is owned by App (keyed by
 // node path) so collapse/expand-all and the view toggle share it.
 function NodeCard({ node, hasChildren, collapsed, onToggle }) {
+  const { items, manifest } = useGame();
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
-  const rarity = item?.rarity ?? 'common';
+  const color = tierColor(manifest.tiers, item?.tier);
   const isCrafted = node.stations !== null;
   const yieldsPerCraft = item?.recipe?.yields ?? 1;
 
@@ -33,7 +34,7 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
             : undefined
         }
         title={hasChildren ? (collapsed ? 'Expand ingredients' : 'Collapse ingredients') : undefined}
-        className={`relative flex w-36 flex-col items-center gap-2 rounded-lg border-2 bg-zinc-900 p-3 shadow-sm ${rarityBorderClass(rarity)} ${
+        className={`relative flex w-36 flex-col items-center gap-2 rounded-lg border-2 bg-zinc-900 p-3 shadow-sm ${tierBorderClass(color)} ${
           hasChildren
             ? 'cursor-pointer hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
             : ''

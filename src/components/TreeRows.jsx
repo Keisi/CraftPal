@@ -1,8 +1,8 @@
-import { items } from '../lib/data.js';
+import { useGame } from '../lib/GameContext.js';
 import { childPath, ROOT_PATH } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
-import { rarityBorderClass } from '../lib/rarity.js';
+import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Compact crafting-tree view: one row per node, depth shown by indentation
 // instead of horizontal spread. The diagram view's width grows with the
@@ -13,11 +13,12 @@ import { rarityBorderClass } from '../lib/rarity.js';
 // Collapse is controlled by the caller (App) so "collapse/expand all" and the
 // view toggle can drive it; `collapsed` is a Set of node paths.
 function TreeRow({ node, path, depth, collapsed, onToggle }) {
+  const { items, manifest } = useGame();
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(path);
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
-  const rarity = item?.rarity ?? 'common';
+  const color = tierColor(manifest.tiers, item?.tier);
   const yieldsPerCraft = item?.recipe?.yields ?? 1;
 
   return (
@@ -37,8 +38,8 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
             : undefined
         }
         title={hasChildren ? (isCollapsed ? 'Expand ingredients' : 'Collapse ingredients') : undefined}
-        className={`flex items-center gap-2 rounded-md border-l-2 bg-zinc-900/60 py-1 pl-2 pr-3 ${rarityBorderClass(
-          rarity,
+        className={`flex items-center gap-2 rounded-md border-l-2 bg-zinc-900/60 py-1 pl-2 pr-3 ${tierBorderClass(
+          color,
         )} ${
           hasChildren
             ? 'cursor-pointer hover:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-500'

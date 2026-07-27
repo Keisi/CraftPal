@@ -210,7 +210,7 @@ describe('aggregateRaw', () => {
 });
 
 describe('real data: assault_rifle (common)', () => {
-  const dataPath = path.join(__dirname, '..', 'data', 'items.json');
+  const dataPath = path.join(__dirname, '..', 'data', 'palworld', 'items.json');
   const { items } = JSON.parse(readFileSync(dataPath, 'utf8'));
 
   test('aggregates raw materials to the hand-derived expected totals', () => {
@@ -258,7 +258,7 @@ describe('collapsiblePaths / childPath', () => {
   });
 
   test('real data: every collapsible path in the assault_rifle tree is unique', () => {
-    const items = JSON.parse(readFileSync(path.join(__dirname, '..', 'data', 'items.json'), 'utf8')).items;
+    const items = JSON.parse(readFileSync(path.join(__dirname, '..', 'data', 'palworld', 'items.json'), 'utf8')).items;
     const paths = collapsiblePaths(buildTree(items, 'assault_rifle', 1));
     assert.equal(new Set(paths).size, paths.length);
     assert.ok(paths.includes(ROOT_PATH));

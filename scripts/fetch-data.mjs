@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Paltree Phase 3 data pipeline: scrapes https://paldb.cc for the full item +
-// station dataset and downloads all referenced icons. See PLAN.md §1/§2.
+// CraftPal's Palworld data pipeline (the per-game adapter, PLAN.md §9):
+// scrapes https://paldb.cc for the full item + station dataset and downloads
+// all referenced icons. See PLAN.md §1/§2.
 //
 // Usage:
 //   node scripts/fetch-data.mjs [--limit=N] [--only=item,station,icon] [--verbose]
@@ -22,7 +23,7 @@
 //   6. Assign stable kebab-case ids from display names, resolving collisions
 //      with the paldb internal code.
 //   7. Download every referenced icon (throttled + cached), write
-//      src/data/items.json + stations.json, and emit a run report.
+//      src/data/palworld/items.json + stations.json, and emit a run report.
 
 import * as cheerio from 'cheerio';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -35,9 +36,13 @@ const ROOT = path.resolve(__dirname, '..');
 const CACHE_DIR = path.join(ROOT, 'scripts', '.cache');
 const PAGES_DIR = path.join(CACHE_DIR, 'pages');
 const ICONS_CACHE_DIR = path.join(CACHE_DIR, 'icons');
-const PUBLIC_ICONS_DIR = path.join(ROOT, 'public', 'icons');
-const ITEMS_OUT = path.join(ROOT, 'src', 'data', 'items.json');
-const STATIONS_OUT = path.join(ROOT, 'src', 'data', 'stations.json');
+// Per-game layout (PLAN.md §9): this scraper is the Palworld adapter, writing
+// into src/data/palworld/ + public/games/palworld/icons/ — a future game gets
+// its own scripts/fetch-<game>.mjs writing the analogous src/data/<game>/.
+const GAME_DATA_DIR = path.join(ROOT, 'src', 'data', 'palworld');
+const PUBLIC_ICONS_DIR = path.join(ROOT, 'public', 'games', 'palworld', 'icons');
+const ITEMS_OUT = path.join(GAME_DATA_DIR, 'items.json');
+const STATIONS_OUT = path.join(GAME_DATA_DIR, 'stations.json');
 const REPORT_OUT = path.join(CACHE_DIR, 'fetch-report.json');
 
 const BASE = 'https://paldb.cc';
@@ -465,6 +470,7 @@ async function main() {
   ensureDir(PAGES_DIR);
   ensureDir(ICONS_CACHE_DIR);
   ensureDir(PUBLIC_ICONS_DIR);
+  ensureDir(GAME_DATA_DIR);
 
   const report = {
     startedAt: new Date().toISOString(),
@@ -785,17 +791,22 @@ async function main() {
   }
 
   // --- Build final items.json / stations.json shape -------------------------
+  // Field names are the game-neutral schema v2 (PLAN.md §9): rarity -> tier,
+  // techLevel -> progression, family -> variantGroup. Palworld's own
+  // vocabulary (rarity/techLevel/family) stays as the internal variable names
+  // above since that's paldb.cc's own domain language for the scrape — only
+  // the emitted JSON shape is renamed here.
   const finalItems = {};
   for (const item of itemsById.values()) {
     const entry = {
       name: item.name,
       icon: `icons/${item.iconFilename ?? `${item.id}.webp`}`,
       category: item.category,
-      rarity: item.rarity,
+      tier: item.rarity,
     };
-    if (item.family) entry.family = item.family;
+    if (item.family) entry.variantGroup = item.family;
     const primary = item.alternates[item.primaryAlternateIdx];
-    if (primary && primary.techLevel !== undefined) entry.techLevel = primary.techLevel;
+    if (primary && primary.techLevel !== undefined) entry.progression = primary.techLevel;
     if (primary && primary.ingredients.length > 0) {
       entry.recipe = {
         stations: item.stationIds ?? [],
@@ -811,7 +822,7 @@ async function main() {
   const finalStations = {};
   for (const station of stationsById.values()) {
     const entry = { name: station.name, icon: `icons/${station.iconFilename}` };
-    if (station.techLevel !== undefined) entry.techLevel = station.techLevel;
+    if (station.techLevel !== undefined) entry.progression = station.techLevel;
     finalStations[station.id] = entry;
   }
 
@@ -873,12 +884,12 @@ async function main() {
   }
 
   // --- Write outputs -----------------------------------------------------------
-  const itemsDoc = { schemaVersion: 1, gameVersion, items: finalItems };
+  const itemsDoc = { schemaVersion: 2, gameVersion, items: finalItems };
   writeFileSync(ITEMS_OUT, JSON.stringify(itemsDoc, null, 2) + '\n', 'utf8');
   writeFileSync(STATIONS_OUT, JSON.stringify(finalStations, null, 2) + '\n', 'utf8');
 
   const craftableCount = Object.values(finalItems).filter((i) => i.recipe).length;
-  const variantCount = Object.values(finalItems).filter((i) => i.family).length;
+  const variantCount = Object.values(finalItems).filter((i) => i.variantGroup).length;
 
   report.finishedAt = new Date().toISOString();
   report.gameVersion = gameVersion;

@@ -1,0 +1,24 @@
+{
+  "id": "palworld",
+  "name": "CraftPal",
+  "tagline": "Palworld crafting-tree explorer",
+  "assetBase": "games/palworld/",
+  "attribution": [
+    { "label": "paldb.cc", "url": "https://paldb.cc" },
+    { "label": "palworld.gg", "url": "https://palworld.gg" }
+  ],
+  "labels": {
+    "station": "station",
+    "stationPlural": "stations",
+    "tier": "rarity",
+    "progression": "Tech level"
+  },
+  "tiers": [
+    { "id": "common", "label": "Common", "color": "gray" },
+    { "id": "uncommon", "label": "Uncommon", "color": "green" },
+    { "id": "rare", "label": "Rare", "color": "blue" },
+    { "id": "epic", "label": "Epic", "color": "purple" },
+    { "id": "legendary", "label": "Legendary", "color": "amber" }
+  ],
+  "sorts": ["name", "category", "tier", "progression"]
+}

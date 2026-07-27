@@ -1,5 +1,5 @@
 {
-  "name": "paltree",
+  "name": "craftpal",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "validate": "node scripts/validate-data.mjs",
     "test": "node --test src/lib/*.test.mjs",
-    "fetch-data": "node scripts/fetch-data.mjs"
+    "fetch-data": "node scripts/fetch-data.mjs",
+    "fetch-map": "node scripts/fetch-map.mjs",
+    "fetch-pals": "node scripts/fetch-pals.mjs",
+    "crosscheck": "node scripts/crosscheck-palworldgg.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
