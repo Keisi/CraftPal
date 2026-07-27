@@ -1,19 +1,13 @@
 import { useState } from 'react'
 import data from './data/items.json'
-
-// Rarity badge colors matching Palworld convention.
-const RARITY_STYLES = {
-  common: 'bg-gray-500/20 text-gray-300 border-gray-500/40',
-  uncommon: 'bg-green-500/20 text-green-300 border-green-500/40',
-  rare: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-  epic: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-  legendary: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-}
+import { ItemIcon } from './components/ItemIcon.jsx'
+import { CraftTree } from './components/CraftTree.jsx'
+import { RawSummary } from './components/RawSummary.jsx'
+import { rarityBadgeClass } from './lib/rarity.js'
 
 function RarityBadge({ rarity }) {
-  const classes = RARITY_STYLES[rarity] ?? RARITY_STYLES.common
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${classes}`}>
+    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${rarityBadgeClass(rarity)}`}>
       {rarity}
     </span>
   )
@@ -27,33 +21,20 @@ function CategoryBadge({ category }) {
   )
 }
 
-// Icon with a graceful fallback for missing files (real icons land in Phase 3).
-function ItemIcon({ src, alt }) {
-  const [errored, setErrored] = useState(false)
-
-  if (errored || !src) {
-    return (
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-[10px] text-zinc-500">
-        no icon
-      </div>
-    )
-  }
-
-  return (
-    <img
-      src={`/${src}`}
-      alt={alt}
-      className="h-16 w-16 shrink-0 rounded-md bg-zinc-800 object-contain p-1"
-      onError={() => setErrored(true)}
-    />
-  )
-}
-
-function ItemCard({ id, item }) {
+function ItemCard({ id, item, onSelect }) {
   return (
     <div
       key={id}
-      className="flex flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 shadow-sm transition-colors hover:border-zinc-700"
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelect(id)
+        }
+      }}
+      className="flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 shadow-sm transition-colors hover:border-zinc-600 hover:ring-1 hover:ring-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500"
     >
       <div className="flex items-center gap-3">
         <ItemIcon src={item.icon} alt={item.name} />
@@ -69,8 +50,71 @@ function ItemCard({ id, item }) {
   )
 }
 
+function TreeHeader({ item, qty, onQtyChange, onBack }) {
+  return (
+    <header className="flex flex-wrap items-center gap-4 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+      >
+        ← All items
+      </button>
+
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-zinc-100">{item.name}</h2>
+        <RarityBadge rarity={item.rarity} />
+      </div>
+
+      <label className="ml-auto flex items-center gap-2 text-sm text-zinc-400">
+        Qty
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={qty}
+          onChange={(event) => {
+            const next = Math.floor(Number(event.target.value))
+            onQtyChange(Number.isFinite(next) && next >= 1 ? next : 1)
+          }}
+          className="w-20 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+        />
+      </label>
+    </header>
+  )
+}
+
 function App() {
-  const items = Object.entries(data.items)
+  const items = data.items
+  const entries = Object.entries(items)
+  const [selectedId, setSelectedId] = useState(null)
+  const [qty, setQty] = useState(1)
+
+  const selectedItem = selectedId ? items[selectedId] : null
+
+  function handleSelect(id) {
+    setSelectedId(id)
+    setQty(1)
+  }
+
+  if (selectedItem) {
+    return (
+      <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+        <TreeHeader
+          item={selectedItem}
+          qty={qty}
+          onQtyChange={setQty}
+          onBack={() => setSelectedId(null)}
+        />
+
+        <main className="flex-1 px-6 py-6">
+          <CraftTree itemId={selectedId} qty={qty} />
+        </main>
+
+        <RawSummary itemId={selectedId} qty={qty} />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -81,8 +125,8 @@ function App() {
 
       <main className="px-6 py-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {items.map(([id, item]) => (
-            <ItemCard key={id} id={id} item={item} />
+          {entries.map(([id, item]) => (
+            <ItemCard key={id} id={id} item={item} onSelect={handleSelect} />
           ))}
         </div>
       </main>

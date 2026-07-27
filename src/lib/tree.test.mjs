@@ -1,0 +1,236 @@
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+import { buildTree, aggregateRaw } from './tree.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+describe('buildTree', () => {
+  test('raw material (no recipe) produces a leaf node', () => {
+    const items = {
+      wood: { name: 'Wood' },
+    };
+    const node = buildTree(items, 'wood', 5);
+    assert.deepEqual(node, {
+      itemId: 'wood',
+      qty: 5,
+      crafts: 0,
+      stations: null,
+      children: [],
+    });
+  });
+
+  test('single-level recipe computes crafts and scaled ingredient qty', () => {
+    const items = {
+      widget: {
+        recipe: {
+          stations: ['bench'],
+          yields: 1,
+          ingredients: [{ item: 'ore', qty: 3 }],
+        },
+      },
+      ore: {},
+    };
+    const node = buildTree(items, 'widget', 2);
+    assert.equal(node.crafts, 2);
+    assert.deepEqual(node.stations, ['bench']);
+    assert.equal(node.children.length, 1);
+    assert.equal(node.children[0].itemId, 'ore');
+    assert.equal(node.children[0].qty, 6); // 3 * 2 crafts
+    assert.equal(node.children[0].crafts, 0);
+    assert.equal(node.children[0].stations, null);
+    assert.deepEqual(node.children[0].children, []);
+  });
+
+  test('yields > 1: recipe yields 3, need 4 -> crafts = 2, ingredients scale by crafts', () => {
+    const items = {
+      batch_item: {
+        recipe: {
+          stations: ['bench'],
+          yields: 3,
+          ingredients: [{ item: 'raw', qty: 5 }],
+        },
+      },
+      raw: {},
+    };
+    const node = buildTree(items, 'batch_item', 4);
+    assert.equal(node.crafts, 2); // ceil(4/3) = 2
+    assert.equal(node.children[0].qty, 10); // 5 * 2
+  });
+
+  test('multi-level nesting multiplies quantities correctly down the chain', () => {
+    const items = {
+      top: {
+        recipe: {
+          stations: ['s1'],
+          yields: 1,
+          ingredients: [{ item: 'mid', qty: 2 }],
+        },
+      },
+      mid: {
+        recipe: {
+          stations: ['s2'],
+          yields: 1,
+          ingredients: [{ item: 'bottom', qty: 3 }],
+        },
+      },
+      bottom: {},
+    };
+    const node = buildTree(items, 'top', 5);
+    assert.equal(node.crafts, 5); // ceil(5/1)
+    const mid = node.children[0];
+    assert.equal(mid.qty, 10); // 2 * 5
+    assert.equal(mid.crafts, 10); // ceil(10/1)
+    const bottom = mid.children[0];
+    assert.equal(bottom.qty, 30); // 3 * 10
+    assert.equal(bottom.crafts, 0);
+    assert.deepEqual(bottom.children, []);
+  });
+
+  test('cycle in data terminates and the cycle node becomes a leaf', () => {
+    const items = {
+      a: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'b', qty: 1 }],
+        },
+      },
+      b: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'a', qty: 1 }],
+        },
+      },
+    };
+    const node = buildTree(items, 'a', 1);
+    // a -> b -> a(cycle, leaf)
+    const b = node.children[0];
+    assert.equal(b.itemId, 'b');
+    assert.equal(b.children.length, 1);
+    const cycleA = b.children[0];
+    assert.deepEqual(cycleA, {
+      itemId: 'a',
+      qty: 1,
+      crafts: 0,
+      stations: null,
+      children: [],
+    });
+  });
+
+  test('unknown ingredient id resolves to a leaf without throwing', () => {
+    const items = {
+      thing: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'nonexistent', qty: 4 }],
+        },
+      },
+    };
+    assert.doesNotThrow(() => buildTree(items, 'thing', 1));
+    const node = buildTree(items, 'thing', 1);
+    const child = node.children[0];
+    assert.deepEqual(child, {
+      itemId: 'nonexistent',
+      qty: 4,
+      crafts: 0,
+      stations: null,
+      children: [],
+    });
+  });
+
+  test('unknown top-level itemId resolves to a leaf without throwing', () => {
+    const items = { known: {} };
+    assert.doesNotThrow(() => buildTree(items, 'ghost', 7));
+    const node = buildTree(items, 'ghost', 7);
+    assert.deepEqual(node, {
+      itemId: 'ghost',
+      qty: 7,
+      crafts: 0,
+      stations: null,
+      children: [],
+    });
+  });
+
+  test('Object.hasOwn lookup avoids prototype-chain false hits', () => {
+    const items = { real: {} };
+    // "toString"/"constructor" exist on Object.prototype but not as own props.
+    const node = buildTree(items, 'toString', 1);
+    assert.equal(node.crafts, 0);
+    assert.equal(node.stations, null);
+    assert.deepEqual(node.children, []);
+  });
+});
+
+describe('aggregateRaw', () => {
+  test('sums a shared ingredient across branches', () => {
+    // top needs 1x branchA (-> 2x raw) and 1x branchB (-> 3x raw): raw totals 5.
+    const items = {
+      top: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [
+            { item: 'branchA', qty: 1 },
+            { item: 'branchB', qty: 1 },
+          ],
+        },
+      },
+      branchA: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'raw', qty: 2 }],
+        },
+      },
+      branchB: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'raw', qty: 3 }],
+        },
+      },
+      raw: {},
+    };
+    const node = buildTree(items, 'top', 1);
+    const totals = aggregateRaw(node);
+    assert.equal(totals.get('raw'), 5);
+  });
+
+  test('leaf-only tree aggregates itself', () => {
+    const node = buildTree({ wood: {} }, 'wood', 9);
+    const totals = aggregateRaw(node);
+    assert.deepEqual([...totals.entries()], [['wood', 9]]);
+  });
+});
+
+describe('real data: assault_rifle (common)', () => {
+  const dataPath = path.join(__dirname, '..', 'data', 'items.json');
+  const { items } = JSON.parse(readFileSync(dataPath, 'utf8'));
+
+  test('aggregates raw materials to the hand-derived expected totals', () => {
+    // Derivation (PLAN.md sample data, qty 1):
+    //   assault_rifle: 40 refined_ingot + 10 polymer + 10 carbon_fiber
+    //   40 refined_ingot -> 80 ore + 80 coal
+    //   10 carbon_fiber  -> 20 coal + 10 flame_organ
+    //   10 polymer       -> 20 high_quality_pal_oil + 10 sulfur
+    // Totals: ore 80, coal 100 (80+20), high_quality_pal_oil 20, sulfur 10,
+    // flame_organ 10.
+    const node = buildTree(items, 'assault_rifle', 1);
+    const totals = aggregateRaw(node);
+
+    assert.equal(totals.get('ore'), 80);
+    assert.equal(totals.get('coal'), 100);
+    assert.equal(totals.get('high_quality_pal_oil'), 20);
+    assert.equal(totals.get('sulfur'), 10);
+    assert.equal(totals.get('flame_organ'), 10);
+
+    // No stray raw materials beyond these 5.
+    assert.equal(totals.size, 5);
+  });
+});

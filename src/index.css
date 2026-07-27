@@ -7,3 +7,96 @@
 body {
   margin: 0;
 }
+
+/* Crafting-tree connectors (Phase 2, PLAN.md §5) — classic CSS-borders tree
+   technique: nested ul/li where li::before/::after draw half-width top
+   borders (the horizontal spread between siblings) and a vertical stub
+   connects each node down to its parent. A single child collapses to a
+   plain straight vertical line, since there's nothing to spread to.
+   Plain CSS (not Tailwind utilities) because the ::before/::after border
+   math has no ergonomic utility-class equivalent. Lines are deliberately
+   subtle (zinc-700). */
+
+.tree,
+.tree ul {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree ul {
+  padding-top: 28px;
+  position: relative;
+}
+
+.tree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 0 14px;
+}
+
+/* Horizontal half-borders connecting a node to its siblings. */
+.tree li::before,
+.tree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 28px;
+  border-top: 1px solid #3f3f46; /* zinc-700 */
+}
+
+.tree li::before {
+  right: 50%;
+}
+
+/* Vertical drop from the shared horizontal line down into this node. */
+.tree li::after {
+  left: 50%;
+  border-left: 1px solid #3f3f46;
+}
+
+/* A lone child (including the root, which is always the sole <li> of the
+   top-level .tree ul) needs no left/right spread — just the plain vertical
+   stub supplied by the parent ul's ::before below. */
+.tree li:only-child {
+  padding-top: 0;
+}
+
+.tree li:only-child::before,
+.tree li:only-child::after {
+  display: none;
+}
+
+/* Trim the outer half-border past the first/last sibling so the row doesn't
+   sprout dangling stubs beyond the outermost nodes. */
+.tree li:first-child::before,
+.tree li:last-child::after {
+  border-top: none;
+}
+
+.tree li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+
+.tree li:last-child::before {
+  border-right: 1px solid #3f3f46;
+  border-radius: 0 6px 0 0;
+}
+
+/* Short vertical segment connecting a node down to its children row (or
+   straight down to a single child). Only nested (children-group) uls get
+   this — the top-level `.tree` ul itself has no incoming connector. */
+.tree ul::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 28px;
+  border-left: 1px solid #3f3f46;
+}
