@@ -39,7 +39,15 @@
 //      hotlinked runtime assets).
 //   6. Download the z0..z3 tile pyramid (85 tiles) into
 //      public/games/palworld/tiles/z{z}x{x}y{y}.webp.
+//   7. Resolve every egg marker's real "Contains one of: ..." set
+//      (resolveEggSpawnerGroups(), see the NOTE above normalizeMarker()):
+//      discover the distinct spawner-group hrefs from the parsed markers,
+//      fetch+parse each https://paldb.cc/en/<href> page's egg table (cached
+//      in scripts/.cache/map/egg-spawners/), and set `contains: [itemId,
+//      ...]` on every marker of that href. Hard-errors on any egg name that
+//      doesn't resolve to a real item id, or a page with zero parsed names.
 
+import * as cheerio from 'cheerio';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -50,6 +58,7 @@ const ROOT = path.resolve(__dirname, '..');
 const CACHE_DIR = path.join(ROOT, 'scripts', '.cache', 'map');
 const ICONS_CACHE_DIR = path.join(CACHE_DIR, 'icons');
 const TILES_CACHE_DIR = path.join(CACHE_DIR, 'tiles');
+const EGG_SPAWNER_CACHE_DIR = path.join(CACHE_DIR, 'egg-spawners');
 const MAP_DATA_CACHE_FILE = path.join(CACHE_DIR, 'map_data_en.js');
 const REPORT_OUT = path.join(CACHE_DIR, 'fetch-map-report.json');
 
@@ -57,6 +66,10 @@ const PALWORLD_DIR = path.join(ROOT, 'public', 'games', 'palworld');
 const MAP_JSON_OUT = path.join(PALWORLD_DIR, 'data', 'map.json');
 const PUBLIC_MARKER_ICONS_DIR = path.join(PALWORLD_DIR, 'icons', 'markers');
 const PUBLIC_TILES_DIR = path.join(PALWORLD_DIR, 'tiles');
+// fetch-map.mjs is the Palworld adapter (CLAUDE.md: "the scraper is the
+// per-game adapter") — hardcoding this path is fine, unlike fetch-pals.mjs
+// which still supports the pre-multigame-refactor fallback location.
+const ITEMS_JSON_PATH = path.join(ROOT, 'src', 'data', 'palworld', 'items.json');
 
 // NOTE: don't try to resolve egg markers' `itemId` (e.g. "PalEgg_Dragon_01")
 // to a single CraftPal item and surface it as "Contains: X" — it looks like
@@ -66,14 +79,24 @@ const PUBLIC_TILES_DIR = path.join(PALWORLD_DIR, 'tiles');
 // Sakura marker (itemId PalEgg_Dragon_01) both point at spawner groups whose
 // real per-region tables were confirmed by fetching the spawner pages behind
 // their `href` codes — https://paldb.cc/en/tenraku_grade_01 (Feybreak) lists
-// Rocky/Frozen/Verdant/Dragon/Common/Damp/Scorching Egg, and
-// https://paldb.cc/en/grass_grade_01 (Grass) lists Common/Verdant/Frozen/
-// Scorching/Damp/Rocky Egg. So `itemId` is only the icon paldb chose for
-// that marker, not its contents — asserting one specific egg on all 1,786
-// egg markers would be confidently wrong, worse than showing nothing. A
-// genuinely honest "Contains one of: ..." would need scraping the ~7
-// spawner-group pages for their real tables — a real feature, but a
-// separate decision from this scraper pass.
+// 15 distinct egg outcomes (Dark/Rocky/Electric/Frozen/Verdant/Dragon/Common/
+// Damp/Scorching, each in Small/Large/Huge size variants where the table
+// rolls them), and https://paldb.cc/en/grass_grade_01 (Grass) lists a
+// different 19. So `itemId` is only the icon paldb chose for that marker,
+// not its contents — asserting one specific egg on all 1,786 egg markers
+// would be confidently wrong, worse than showing nothing.
+//
+// The genuinely honest "Contains one of: ..." IS implemented below
+// (resolveEggSpawnerGroups()): it discovers the real spawner-group hrefs
+// from the parsed markers themselves (never a hardcoded list — a game patch
+// adding/removing a group is picked up automatically), fetches
+// https://paldb.cc/en/<href> per DISTINCT HREF (not per marker type — e.g.
+// grass_grade_01..04 are different tables), parses each page's "pal | weight
+// | egg" table for its real egg outcomes, and resolves every egg name to a
+// real CraftPal item id BY NAME — hard-erroring on any name that doesn't
+// resolve, or any page that parses to zero egg names, rather than silently
+// dropping or guessing. Markers with no href (Sunreach Egg) get no `contains`
+// field at all, and that count is reported, not swallowed.
 
 const BASE = 'https://paldb.cc';
 const MAP_DATA_URL = `${BASE}/js/map_data_en.js`;
@@ -349,6 +372,209 @@ function slugify(name) {
 }
 
 // ---------------------------------------------------------------------------
+// Egg spawner group resolution ("Contains one of: ...", see the module NOTE
+// above). See resolveEggSpawnerGroups() for the orchestration; these are its
+// building blocks.
+// ---------------------------------------------------------------------------
+
+/** Normalize a display name for matching: lowercase, strip everything but
+ * [a-z0-9] — mirrors fetch-pals.mjs's normalizeForMatch so an incidental
+ * whitespace/punctuation difference between paldb's egg-table text and
+ * items.json's `name` field can't cause a false hard-error. */
+function normalizeForMatch(s) {
+  return String(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+/** normalized-name -> item id, built from src/data/palworld/items.json.
+ * Throws if items.json is missing entirely — resolving egg names against a
+ * name index that silently doesn't exist would be worse than not trying. */
+function buildItemNameIndex() {
+  if (!existsSync(ITEMS_JSON_PATH)) {
+    throw new Error(`HARD ERROR: cannot resolve egg spawner tables — ${ITEMS_JSON_PATH} not found.`);
+  }
+  const doc = JSON.parse(readFileSync(ITEMS_JSON_PATH, 'utf8'));
+  const items = doc.items ?? {};
+  const index = new Map();
+  for (const [id, item] of Object.entries(items)) {
+    const key = normalizeForMatch(item.name);
+    if (!index.has(key)) index.set(key, id);
+  }
+  return index;
+}
+
+/** Parse one spawner-group page (https://paldb.cc/en/<href>) for its real
+ * egg loot table: a "pal | weight | egg" DataTable (confirmed identical
+ * column labels across all 12 known groups on 2026-07-27) whose `egg` column
+ * names every possible egg outcome for that spawner group. Selecting the
+ * table by its header labels (rather than e.g. the surrounding card's title
+ * text, which embeds the href) is what makes this independent of which
+ * specific href we're looking at. Returns egg display names in first-seen
+ * order, deduped — empty means "no such table found on this page", which the
+ * caller treats as a hard parse failure (a page that legitimately lists no
+ * eggs is not a thing; paldb just changed its markup). */
+function parseEggTableNames(html) {
+  const $ = cheerio.load(html);
+  const table = $('table')
+    .toArray()
+    .find((t) => {
+      const headers = $(t)
+        .find('thead th')
+        .toArray()
+        .map((th) => $(th).text().trim().toLowerCase());
+      return headers.length === 3 && headers[0] === 'pal' && headers[1] === 'weight' && headers[2] === 'egg';
+    });
+  if (!table) return [];
+  const names = [];
+  const seen = new Set();
+  $(table)
+    .find('tbody tr')
+    .each((_, tr) => {
+      const eggCell = $(tr).children('td').eq(2);
+      const name = eggCell.find('a.itemname').first().text().trim();
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        names.push(name);
+      }
+    });
+  return names;
+}
+
+/**
+ * Resolve every egg marker's real "contains" set, per SPAWNER GROUP HREF
+ * (not marker type — see the module NOTE). Mutates `markers` in place,
+ * setting `.contains = [itemId, ...]` on every marker whose href resolved to
+ * a fetched, non-empty, fully-name-resolved egg table. Markers with no href
+ * (Sunreach Egg) are left untouched (no `contains` field at all — absent,
+ * never an empty array pretending to be a known-empty table).
+ *
+ * Egg marker TYPES are discovered from iconLookup's own `category` field
+ * (already how the UI color-codes canvas dots, CATEGORY_DOT_COLORS in
+ * MapView.jsx) — never a hardcoded type-name list, so a new egg region in a
+ * future patch is picked up automatically.
+ */
+async function resolveEggSpawnerGroups(markers, iconLookup, report) {
+  const eggTypeIds = new Set(
+    Object.entries(iconLookup)
+      .filter(([, def]) => def.category === 'Eggs')
+      .map(([id]) => id),
+  );
+  const eggMarkers = markers.filter((m) => eggTypeIds.has(m.type));
+  const withoutHref = eggMarkers.filter((m) => !m.href);
+
+  const hrefGroups = new Map(); // href -> markers[]
+  for (const m of eggMarkers) {
+    if (!m.href) continue;
+    if (!hrefGroups.has(m.href)) hrefGroups.set(m.href, []);
+    hrefGroups.get(m.href).push(m);
+  }
+
+  log(
+    `fetch-map: egg markers: ${eggMarkers.length} total across ${eggTypeIds.size} type(s), ` +
+      `${hrefGroups.size} distinct spawner-group href(s), ${withoutHref.length} marker(s) with no href`,
+  );
+
+  if (hrefGroups.size === 0) {
+    report.eggSpawnerGroups = {
+      totalEggMarkers: eggMarkers.length,
+      distinctHrefs: 0,
+      markersWithContains: 0,
+      markersNoHref: withoutHref.length,
+      markersPendingHref: 0,
+      groups: [],
+    };
+    return;
+  }
+
+  const itemNameIndex = buildItemNameIndex();
+
+  const zeroEggPages = [];
+  const unresolvedNames = []; // {href, name}
+  const groupNames = new Map(); // href -> [egg display names]
+  const groupIds = new Map(); // href -> [item ids]
+  let hrefsFailed = 0;
+  let hrefsSkippedLimit = 0;
+
+  for (const href of [...hrefGroups.keys()].sort((a, b) => a.localeCompare(b))) {
+    const cacheFile = path.join(EGG_SPAWNER_CACHE_DIR, `${href}.html`);
+    const url = `${BASE}/en/${href}`;
+    const html = await fetchCached(url, cacheFile, report, 'failedEggSpawnerPages');
+    if (html == null) {
+      if (limitReached) hrefsSkippedLimit++;
+      else hrefsFailed++;
+      continue; // no page this run -> its markers stay pending, no contains yet
+    }
+    const names = parseEggTableNames(html);
+    if (names.length === 0) {
+      zeroEggPages.push(href);
+      continue;
+    }
+    groupNames.set(href, names);
+    const ids = [];
+    for (const name of names) {
+      const id = itemNameIndex.get(normalizeForMatch(name));
+      if (id) ids.push(id);
+      else unresolvedNames.push({ href, name });
+    }
+    groupIds.set(href, ids);
+  }
+
+  if (zeroEggPages.length > 0) {
+    throw new Error(
+      `HARD ERROR: egg spawner page(s) parsed to zero egg names (expected a "pal | weight | egg" table): ` +
+        `${zeroEggPages.join(', ')} — upstream markup likely changed.`,
+    );
+  }
+  if (unresolvedNames.length > 0) {
+    const sample = unresolvedNames
+      .slice(0, 25)
+      .map((u) => `${u.href}: "${u.name}"`)
+      .join('; ');
+    throw new Error(
+      `HARD ERROR: ${unresolvedNames.length} egg name(s) across the spawner-group tables did not resolve to a ` +
+        `CraftPal item id (checked against ${ITEMS_JSON_PATH}): ${sample}${unresolvedNames.length > 25 ? ', ...' : ''}`,
+    );
+  }
+
+  let markersWithContains = 0;
+  for (const [href, ids] of groupIds) {
+    for (const m of hrefGroups.get(href)) {
+      m.contains = ids;
+      markersWithContains++;
+    }
+  }
+  const markersPendingHref = eggMarkers.length - markersWithContains - withoutHref.length;
+
+  report.eggSpawnerGroups = {
+    totalEggMarkers: eggMarkers.length,
+    distinctHrefs: hrefGroups.size,
+    markersWithContains,
+    markersNoHref: withoutHref.length,
+    markersPendingHref,
+    hrefsFailed,
+    hrefsSkippedLimit,
+    groups: [...groupNames.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([href, names]) => ({
+        href,
+        markerCount: hrefGroups.get(href).length,
+        eggNames: names,
+        itemIds: groupIds.get(href),
+      })),
+  };
+
+  log(
+    `fetch-map: egg spawner groups — ${groupNames.size}/${hrefGroups.size} page(s) resolved this run, ` +
+      `${markersWithContains} marker(s) got contains, ${withoutHref.length} marker(s) have no href (no contains), ` +
+      `${markersPendingHref} marker(s) pending (href not fetched yet)`,
+  );
+  for (const [href, names] of [...groupNames.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    log(`  ${href} (${hrefGroups.get(href).length} marker(s)): ${names.length} egg(s) -> ${names.join(', ')}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Phase: map data (fetch map_data_en.js, parse, normalize, emit map.json,
 // download marker-type legend icons)
 // ---------------------------------------------------------------------------
@@ -414,6 +640,10 @@ async function runMapPhase(report) {
 
   const typeCounts = new Map();
   for (const m of markers) typeCounts.set(m.type, (typeCounts.get(m.type) ?? 0) + 1);
+
+  // --- egg spawner groups: honest "Contains one of: ..." (see module NOTE) ----
+  ensureDir(EGG_SPAWNER_CACHE_DIR);
+  await resolveEggSpawnerGroups(markers, vars.iconLookup, report);
 
   // --- marker-type legend icons ------------------------------------------------
   ensureDir(PUBLIC_MARKER_ICONS_DIR);
@@ -534,6 +764,7 @@ async function main() {
     failedFetches: [],
     failedIcons: [],
     failedTiles: [],
+    failedEggSpawnerPages: [],
     counts: {},
     partial: false,
     tileSizeWarning: false,
@@ -554,17 +785,29 @@ async function main() {
     log(`  marker icons: ${report.counts.markerIconsWritten} written, ${report.counts.markerIconsPresent} present, ${report.counts.markerIconsMissing} missing`);
     log(`  map.json: ${report.counts.mapJsonBytes} bytes`);
   }
+  if (report.eggSpawnerGroups) {
+    const eg = report.eggSpawnerGroups;
+    log(
+      `  egg spawner groups: ${eg.totalEggMarkers} egg marker(s), ${eg.distinctHrefs} href(s), ` +
+        `${eg.markersWithContains} marker(s) got contains, ${eg.markersNoHref} with no href (no contains), ` +
+        `${eg.markersPendingHref} pending`,
+    );
+  }
   if (report.counts.tilesWritten !== undefined) {
     log(`  tiles: ${report.counts.tilesWritten} written, ${report.counts.tilesPresent} present, ${report.counts.tilesMissing} missing, ${report.counts.tilesTotalBytes} bytes total`);
   }
-  log(`  failed fetches: ${report.failedFetches.length}, failed icons: ${report.failedIcons.length}, failed tiles: ${report.failedTiles.length}`);
+  log(
+    `  failed fetches: ${report.failedFetches.length}, failed icons: ${report.failedIcons.length}, ` +
+      `failed tiles: ${report.failedTiles.length}, failed egg spawner pages: ${report.failedEggSpawnerPages.length}`,
+  );
   if (limitReached) log('  --limit reached; run again to continue.');
   log(`  report written to ${REPORT_OUT}`);
 
   if (
     (report.counts.markerIconsMissing ?? 0) > 0 ||
     (report.counts.tilesMissing ?? 0) > 0 ||
-    report.failedFetches.length > 0
+    report.failedFetches.length > 0 ||
+    report.failedEggSpawnerPages.length > 0
   ) {
     if (!report.partial) {
       log('  Hard error: complete run still has missing assets. See report.');

@@ -11,6 +11,7 @@ import {
   formatIngameCoord,
 } from '../lib/mapProject.js';
 import { groupTypesByCategory, countMarkersByType, partitionMarkersForRender, nearestMarker } from '../lib/mapMarkers.js';
+import { ItemIcon } from './ItemIcon.jsx';
 
 // The map view (PLAN.md §8). No map library (no Leaflet/MapLibre, no new
 // dependency) — the base map is the local XYZ tile pyramid rendered as plain
@@ -206,10 +207,34 @@ function HabitatPicker({ pals, focusPal, onFocusPalChange, dayNight, onDayNightC
   );
 }
 
+// "Contains one of: ..." — the honest reading of an egg marker's `contains`
+// (see fetch-map.mjs's resolveEggSpawnerGroups() and the module NOTE there):
+// a spawner group rolls a TABLE of egg types, so this always renders the
+// full resolved set, never a single guessed item. Absent `contains` (no
+// href, or a non-egg marker) renders nothing — never an empty section.
+function ContainsOneOf({ itemIds, items }) {
+  if (!itemIds || itemIds.length === 0) return null;
+  return (
+    <div className="mt-2 border-t border-zinc-800 pt-2">
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Contains one of</div>
+      <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto pr-1">
+        {itemIds.map((id) => {
+          const item = items[id];
+          return (
+            <div key={id} className="flex items-center gap-1 rounded bg-zinc-800/60 py-0.5 pl-0.5 pr-1.5">
+              <ItemIcon src={item?.icon} alt={item?.name ?? id} className="h-5 w-5" />
+              <span className="text-[11px] text-zinc-300">{item?.name ?? id}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MarkerInfoPanel({ marker, typesById, items, onClose }) {
   if (!marker) return null;
   const typeDef = typesById.get(marker.type);
-  const linkedItem = marker.itemId ? items[marker.itemId] : null;
 
   return (
     <div className="absolute bottom-3 right-3 z-20 max-w-xs rounded-lg border border-zinc-700 bg-zinc-900/95 p-3 text-sm shadow-lg backdrop-blur">
@@ -230,8 +255,8 @@ function MarkerInfoPanel({ marker, typesById, items, onClose }) {
         {marker.onlyTime && <div className="text-amber-300">{marker.onlyTime === 'night' ? 'Night only' : marker.onlyTime}</div>}
         {marker.cooldown && <div>Cooldown: {marker.cooldown}</div>}
         {marker.comment && <div className="text-zinc-400">{marker.comment}</div>}
-        {linkedItem && <div className="text-zinc-400">Contains: {linkedItem.name}</div>}
       </div>
+      <ContainsOneOf itemIds={marker.contains} items={items} />
     </div>
   );
 }

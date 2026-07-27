@@ -6,14 +6,19 @@
 // driven, not a hardcoded Palworld ladder — a future game directory is
 // validated the same way with zero changes here. Node, no deps.
 //
-// Also validates the three generated per-game datasets from PLAN.md §8, each
+// Also validates the four generated per-game datasets from PLAN.md §8, each
 // of which a game may legitimately omit (skipped, not failed, when absent —
 // the OK line says which datasets were skipped):
 //   - src/data/<game>/pals.json — pal roster, drop->item references, and
 //     habitat summary fields cross-checked against the habitat files below.
 //   - public/games/<game>/data/habitats/*.json — per-pal flat [x,y,lv,...]
 //     day/night point clouds.
-//   - public/games/<game>/data/map.json — POI markers + marker-type legend.
+//   - public/games/<game>/data/map.json — POI markers + marker-type legend +
+//     the "Contains one of: ..." egg-marker `contains` item references.
+//   - public/games/<game>/tiles/ — the base-map tile PYRAMID must be
+//     COMPLETE for every zoom level actually present on disk (z tiles =
+//     z{z}x{x}y{y}.webp for x,y in [0, 2**z)); a partial tile download is a
+//     hard error, not a quietly-shipped map full of holes.
 //
 // Usage: node scripts/validate-data.mjs
 // Exits 0 on success, 1 with a clear message on the first class of failure
@@ -214,14 +219,21 @@ function validatePals(gameId, palsPath, publicAssetDir, habitatsDir, habitatPoin
  * which are assetBase-relative — hence resolving against PUBLIC_DIR, not
  * publicAssetDir.
  *
- * No marker carries a resolved `item` today — fetch-map.mjs deliberately does
- * NOT try to resolve egg markers' `itemId` to one CraftPal item, because an
- * egg spawner rolls a loot table of several egg types rather than containing
- * exactly one (see the NOTE in fetch-map.mjs for the evidence). This check is
- * a no-op against the current dataset, kept for the future/no other game: IF
- * a marker's `item` ever gets populated (a real per-region table, a different
- * game's map data, ...), a dangling reference is a hard error, exactly like a
- * dangling ingredient or pal-drop reference — not silently ignored. */
+ * No marker carries a resolved single `item` today — fetch-map.mjs
+ * deliberately does NOT try to resolve egg markers' `itemId` to one CraftPal
+ * item, because an egg spawner rolls a loot table of several egg types
+ * rather than containing exactly one (see the NOTE in fetch-map.mjs for the
+ * evidence). That `item` check below is a no-op against the current dataset,
+ * kept for the future/no other game: IF a marker's `item` ever gets
+ * populated (a real per-region table, a different game's map data, ...), a
+ * dangling reference is a hard error, exactly like a dangling ingredient or
+ * pal-drop reference — not silently ignored.
+ *
+ * `contains` (plural — the honest "Contains one of: ..." set, fetch-map.mjs
+ * resolveEggSpawnerGroups()) is real on the current dataset: every id inside
+ * every marker's `contains` array must resolve in `items`, same tier/dedupe
+ * strategy as the `item` check (one error per distinct unresolved id, not
+ * per marker — an egg spawner group can have hundreds of markers). */
 function validateMap(gameId, mapPath, items, errors) {
   if (!existsSync(mapPath)) return { present: false, markerCount: 0 }
   const doc = loadJson(mapPath, `[${gameId}] map.json`, errors)
@@ -236,6 +248,7 @@ function validateMap(gameId, mapPath, items, errors) {
   const typeIds = new Set(types.map((t) => t.id))
   const reportedBadTypes = new Set() // dedupe: one error per distinct undeclared type, not per marker
   const reportedBadItems = new Set() // dedupe: one error per distinct unresolved item id, not per marker (a bad id can repeat hundreds of times, e.g. every egg spawner of that type)
+  const reportedBadContains = new Set() // same dedupe, keyed on the unresolved id itself (a bad id can repeat across many markers sharing one spawner-group href)
   for (const [i, m] of markers.entries()) {
     if (!m.type) {
       errors.push(`[${gameId}] map.json: marker[${i}] missing type`)
@@ -258,6 +271,18 @@ function validateMap(gameId, mapPath, items, errors) {
       reportedBadItems.add(m.item)
       errors.push(`[${gameId}] map.json: marker references unknown item "${m.item}" (e.g. marker[${i}])`)
     }
+    if (m.contains !== undefined) {
+      if (!Array.isArray(m.contains) || m.contains.length === 0) {
+        errors.push(`[${gameId}] map.json: marker[${i}] (type "${m.type}") has a non-array or empty "contains" (must be absent, not empty-array-pretending-to-be-known, when nothing is known)`)
+      } else {
+        for (const id of m.contains) {
+          if (!(id in items) && !reportedBadContains.has(id)) {
+            reportedBadContains.add(id)
+            errors.push(`[${gameId}] map.json: marker "contains" references unknown item "${id}" (e.g. marker[${i}])`)
+          }
+        }
+      }
+    }
   }
 
   for (const t of types) {
@@ -265,6 +290,67 @@ function validateMap(gameId, mapPath, items, errors) {
   }
 
   return { present: true, markerCount: markers.length }
+}
+
+// Tile filenames are z{z}x{x}y{y}.webp (fetch-map.mjs's runTilesPhase: x,y in
+// [0, 2**z)). Anchored so a filename like "z10x3y4.webp" still parses z=10,
+// not z=1.
+const TILE_FILE_RE = /^z(\d+)x(\d+)y(\d+)\.webp$/
+const MAX_LISTED_MISSING_TILES = 30
+
+/** Validate public/games/<game>/tiles/ — the base-map tile pyramid.
+ * Absent directory is legal (skip, not fail): a game may ship no map at all.
+ * For every zoom level actually present on disk, the pyramid must be
+ * COMPLETE: every z{z}x{x}y{y}.webp for x,y in [0, 2**z). The set of zoom
+ * levels to check is DERIVED from the filenames present (never hardcoded to
+ * "z0..z3"), so a future deeper pyramid (z4, z5, ...) is validated the same
+ * way with zero changes here — this is the same "don't hardcode what should
+ * be discovered" discipline as fetch-map.mjs's egg-spawner-href discovery.
+ * A HARD ERROR lists the missing tiles (capped) so a partial tile download
+ * doesn't silently ship as a map full of holes. Returns the real per-zoom
+ * {present, expected} counts for the OK line. */
+function validateTiles(gameId, tilesDir, errors) {
+  if (!existsSync(tilesDir)) return { present: false, zoomCounts: {} }
+
+  const files = readdirSync(tilesDir).filter((f) => f.endsWith('.webp'))
+  const presentCoords = new Set() // "z,x,y"
+  const zoomsSeen = new Set()
+  for (const file of files) {
+    const m = file.match(TILE_FILE_RE)
+    if (!m) {
+      errors.push(`[${gameId}] tiles/: "${file}" does not match the expected z{z}x{x}y{y}.webp naming`)
+      continue
+    }
+    const [z, x, y] = [Number(m[1]), Number(m[2]), Number(m[3])]
+    zoomsSeen.add(z)
+    presentCoords.add(`${z},${x},${y}`)
+  }
+
+  const zoomCounts = {}
+  const missing = []
+  for (const z of [...zoomsSeen].sort((a, b) => a - b)) {
+    const tilesPerSide = 2 ** z
+    const expected = tilesPerSide * tilesPerSide
+    let presentCount = 0
+    for (let x = 0; x < tilesPerSide; x++) {
+      for (let y = 0; y < tilesPerSide; y++) {
+        if (presentCoords.has(`${z},${x},${y}`)) presentCount++
+        else missing.push(`z${z}x${x}y${y}.webp`)
+      }
+    }
+    zoomCounts[z] = { present: presentCount, expected }
+  }
+
+  if (missing.length > 0) {
+    const shown = missing.slice(0, MAX_LISTED_MISSING_TILES)
+    const zoomList = [...zoomsSeen].sort((a, b) => a - b).join(', ')
+    errors.push(
+      `[${gameId}] tiles/: pyramid incomplete — ${missing.length} missing tile(s) across zoom level(s) ${zoomList}: ` +
+        `${shown.join(', ')}${missing.length > shown.length ? `, ... and ${missing.length - shown.length} more` : ''}`,
+    )
+  }
+
+  return { present: true, zoomCounts }
 }
 
 function validateGame(gameId, errors) {
@@ -276,7 +362,7 @@ function validateGame(gameId, errors) {
   const manifest = loadJson(manifestPath, `[${gameId}] game.json`, errors)
   const itemsDoc = loadJson(itemsPath, `[${gameId}] items.json`, errors)
   if (!manifest || !itemsDoc) {
-    return { itemCount: 0, stationCount: 0, palCount: 0, habitatFileCount: 0, markerCount: 0, skipped: [] }
+    return { itemCount: 0, stationCount: 0, palCount: 0, habitatFileCount: 0, markerCount: 0, tileZoomCounts: null, skipped: [] }
   }
 
   // stations.json is optional — a game with no crafting-station concept can
@@ -332,6 +418,7 @@ function validateGame(gameId, errors) {
   const palsPath = path.join(gameDir, 'pals.json')
   const habitatsDir = path.join(publicAssetDir, 'data', 'habitats')
   const mapPath = path.join(publicAssetDir, 'data', 'map.json')
+  const tilesDir = path.join(publicAssetDir, 'tiles')
 
   const skipped = []
   const { fileCount: habitatFileCount, pointCounts: habitatPointCounts } = validateHabitatFiles(
@@ -355,7 +442,18 @@ function validateGame(gameId, errors) {
   const { present: mapPresent, markerCount } = validateMap(gameId, mapPath, items, errors)
   if (!mapPresent) skipped.push('map.json')
 
-  return { itemCount: Object.keys(items).length, stationCount: Object.keys(stations).length, palCount, habitatFileCount, markerCount, skipped }
+  const { present: tilesPresent, zoomCounts: tileZoomCounts } = validateTiles(gameId, tilesDir, errors)
+  if (!tilesPresent) skipped.push('tiles/')
+
+  return {
+    itemCount: Object.keys(items).length,
+    stationCount: Object.keys(stations).length,
+    palCount,
+    habitatFileCount,
+    markerCount,
+    tileZoomCounts: tilesPresent ? tileZoomCounts : null,
+    skipped,
+  }
 }
 
 const gameDirs = discoverGameDirs()
@@ -370,15 +468,23 @@ let totalPals = 0
 let totalHabitatFiles = 0
 let totalMarkers = 0
 const skippedByGame = [] // "<gameId>: <dataset>, <dataset>"
+const tileSummaryByGame = [] // "<gameId>: z0 1/1, z1 4/4, ..."
 
 for (const gameId of gameDirs) {
-  const { itemCount, stationCount, palCount, habitatFileCount, markerCount, skipped } = validateGame(gameId, errors)
+  const { itemCount, stationCount, palCount, habitatFileCount, markerCount, tileZoomCounts, skipped } = validateGame(gameId, errors)
   totalItems += itemCount
   totalStations += stationCount
   totalPals += palCount
   totalHabitatFiles += habitatFileCount
   totalMarkers += markerCount
   if (skipped.length > 0) skippedByGame.push(`${gameId}: ${skipped.join(', ')}`)
+  if (tileZoomCounts) {
+    const perZoom = Object.entries(tileZoomCounts)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([z, c]) => `z${z} ${c.present}/${c.expected}`)
+      .join(', ')
+    tileSummaryByGame.push(`${gameId}: ${perZoom}`)
+  }
 }
 
 if (errors.length > 0) {
@@ -387,9 +493,10 @@ if (errors.length > 0) {
 
 const skippedNote =
   skippedByGame.length > 0 ? ` Skipped (not present): ${skippedByGame.join('; ')}.` : ' No datasets skipped.'
+const tilesNote = tileSummaryByGame.length > 0 ? ` Tiles: ${tileSummaryByGame.join('; ')}.` : ''
 
 console.log(
   `validate-data: OK — ${gameDirs.length} game${gameDirs.length === 1 ? '' : 's'} (${gameDirs.join(', ')}), ` +
     `${totalItems} items, ${totalStations} stations, ${totalPals} pals, ${totalHabitatFiles} habitat files, ` +
-    `${totalMarkers} map markers, all references + icons resolve.${skippedNote}`,
+    `${totalMarkers} map markers, all references + icons resolve.${tilesNote}${skippedNote}`,
 )
