@@ -1,8 +1,13 @@
-# Paltree
+# CraftPal
 
 Personal-use static site: pick a Palworld item → recursive crafting tree with
 amounts, stations, icons, and a raw-materials summary. **`PLAN.md` is the source
 of truth — read it before working.** Phase status lives in its §7.
+
+Renamed from "Paltree" to **CraftPal** (2026-07-27); the local folder may still
+be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
+**GitHub Pages** at https://keisi.github.io/CraftPal/ (deployed by
+`.github/workflows/deploy.yml` on every push to `main`).
 
 ## Conventions
 
@@ -21,4 +26,8 @@ of truth — read it before working.** Phase status lives in its §7.
     (paldb.cc scrape) — regenerate, don't hand-edit. Until then it's a
     hand-written sample.
 - **Icons:** local files only, `public/icons/<id>.webp` — never hotlink.
+- **GitHub Pages base path:** production builds serve from `/CraftPal/`
+  (`vite.config.js` sets `base` on build). Any runtime-constructed asset URL
+  must be prefixed with `import.meta.env.BASE_URL` (see `ItemIcon.jsx`) —
+  never a hardcoded leading `/`.
 - **Verify:** `npm run build` must pass before any commit.

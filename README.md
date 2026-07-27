@@ -1,16 +1,35 @@
-# React + Vite
+# CraftPal
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Personal-use Palworld crafting-tree explorer: pick an item, see the full
+recursive tree of ingredients (amounts, crafting stations, icons) and an
+aggregated raw-materials summary — in the style of the classic No Man's Sky
+crafting infographics.
 
-Currently, two official plugins are available:
+**Live site:** https://keisi.github.io/CraftPal/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- Item browser with search, category/rarity filters, craftable-only and
+  by-station filters, and sorting (name / category / rarity / tech level)
+- Rarity variants (Common → Legendary) modeled as separate recipes, grouped
+  into one card with a rarity switcher on the tree view
+- Recursive crafting tree with per-node collapse, quantity multiplier, and
+  station chips (lowest-tech station shown, all listed on hover)
+- Raw-materials totals strip, computed from the live tree
+- Item/recipe data scraped from [paldb.cc](https://paldb.cc) (datamined from
+  the game files) by `scripts/fetch-data.mjs`; icons served locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev        # dev server (hot reload)
+npm test           # node:test suites (tree math, filters)
+npm run validate   # data integrity: refs + icon files resolve
+npm run build      # production build (base=/CraftPal/)
+npm run fetch-data # regenerate src/data/*.json + icons from paldb.cc
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Data conventions and architecture live in `PLAN.md` (source of truth) and
+`CLAUDE.md`. Deploys to GitHub Pages via `.github/workflows/deploy.yml` on
+every push to `main`.

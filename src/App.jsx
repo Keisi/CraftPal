@@ -91,7 +91,7 @@ function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Paltree</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">CraftPal</h1>
         <p className="text-sm text-zinc-400">Palworld crafting-tree explorer</p>
       </header>
 

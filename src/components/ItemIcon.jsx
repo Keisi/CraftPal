@@ -19,7 +19,7 @@ export function ItemIcon({ src, alt, className = 'h-16 w-16' }) {
 
   return (
     <img
-      src={`/${src}`}
+      src={`${import.meta.env.BASE_URL}${src}`}
       alt={alt}
       className={`${className} shrink-0 rounded-md bg-zinc-800 object-contain p-1`}
       onError={() => setErrored(true)}

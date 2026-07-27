@@ -1,4 +1,7 @@
-# Paltree — Palworld Crafting Tree Explorer (Plan)
+# CraftPal — Palworld Crafting Tree Explorer (Plan)
+
+> Renamed from "Paltree" 2026-07-27. Repo: https://github.com/Keisi/CraftPal,
+> hosted on GitHub Pages (https://keisi.github.io/CraftPal/).
 
 Personal-use static site: pick a Palworld item → see the full recursive tree of
 ingredients (with amounts), the crafting station each step requires, item icons,
