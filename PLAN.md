@@ -429,6 +429,37 @@ Every game gets its own `scripts/fetch-<game>.mjs` emitting the common schema.
 Sequence: manifest + renames → decouple components from `data.js` → loader +
 `VITE_GAME` → per-game icon namespace → fixture-game tests → second real game.
 
+### Result of the second-game test (Minecraft, 2026-07-27)
+
+Ported Minecraft (1,610 items, 1,076 craftable, 8 stations, from vanilla's own
+data via misode/mcmeta) on the local-only `feat/minecraft-game` branch — never
+merged, because Pages serves Palworld. Deliberately chosen because Minecraft has
+**no rarity tiers, no tech levels and no map**, which is what §9 claims to
+support.
+
+**§9's component contract held.** Zero files under `src/components/` changed.
+Confirmed live: no tier chips, sorts are exactly Name/Category, no Map tab. Real
+cycles terminate (`wheat ↔ hay_block`, `cobblestone ↔ stone`,
+`raw_iron ↔ raw_iron_block` are genuine single-recipe cycles) with the guard
+firing mid-recursion, not just at the root.
+
+**Two gaps the test exposed — the reason it was worth doing:**
+
+1. **§9's loader design was wrong.** A `REGISTRY` object statically importing
+   every game inflated the default Palworld bundle by **+25%** (1,022 → 1,275 kB):
+   Rollup can't drop an object property read only as `REGISTRY[key]`. The switch
+   must happen at Vite **config load time** — alias `virtual:game-data` to just
+   the selected game's `src/data/<game>/index.js` — so the unselected game is
+   provably absent from the module graph. Palworld then returns to 1,021.91 kB and
+   Minecraft builds at 490.97 kB, each verified to contain none of the other's
+   data. See CLAUDE.md → "Adding another game".
+2. **§1's schema can't express "any of a set."** 93 Minecraft recipes key on a
+   multi-member tag (`#minecraft:logs` = 48 members), so one representative
+   stands in for many and the tree reads "Campfire needs Oak Log ×3" instead of
+   "any log". Same failure shape as the egg-"Contains" trap in §8: a
+   representative presented as fact. Needs an optional `anyOf` on an ingredient
+   plus UI support — **schema v3**, not yet done.
+
 ## Sources
 
 - paldb.cc — datamined items/recipes/icons: https://paldb.cc/en/Items ,

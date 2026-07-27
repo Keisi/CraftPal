@@ -101,6 +101,45 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
   (`vite.config.js` sets `base` on build). Any runtime-constructed asset URL
   must be prefixed with `import.meta.env.BASE_URL` (see `ItemIcon.jsx`) —
   never a hardcoded leading `/`.
+- **Adding another game** (validated 2026-07-27 by porting Minecraft — 1,610
+  items — on the local-only `feat/minecraft-game` branch, which is deliberately
+  never merged because Pages serves Palworld):
+  - Three touchpoints only: `src/data/<game>/game.json` (manifest),
+    `scripts/fetch-<game>.mjs` (the per-game adapter — game-specific translation
+    belongs *here*, never in the UI), and the build-time game switch.
+    **Nothing under `src/components/` should need to change.** If it does, that
+    is a design bug to fix, not a special case to add.
+  - **Do NOT switch games with a `REGISTRY = {gameA: …, gameB: …}` object that
+    statically imports every game's JSON.** Measured: doing that grew the default
+    Palworld bundle from 1,022 kB to 1,275 kB (**+25%**), because Rollup cannot
+    drop an object property that is only ever read dynamically as
+    `REGISTRY[key]` — elimination needs whole-module reachability, not
+    property-level analysis. Switch at **config load time** instead (alias a
+    `virtual:game-data` specifier to just the selected game's
+    `src/data/<game>/index.js` in `vite.config.js`, keyed off `process.env.VITE_GAME`
+    with `palworld` as the default) so the other game's data is *provably absent*
+    from the module graph rather than hopefully shaken out. Working
+    implementation: the `feat/minecraft-game` branch.
+  - **Ids follow each game's own native convention** — Palworld is kebab-case
+    from paldb codes, Minecraft is snake_case from vanilla ids. Don't normalise
+    across games; native ids are the stable ones.
+  - **Icon extension is per-game** (`.webp` for Palworld, `.png` for Minecraft),
+    so nothing may assume `.webp`. Icons may also be legitimately **absent** —
+    ~27% of Minecraft items have no dedicated texture (slabs/stairs reuse their
+    parent material via a model; chests/beds are entity-rendered). `checkIcon`
+    in `validate-data.mjs` therefore takes an `optional` flag for item/station
+    kinds only; pal and marker-type icons stay strict.
+  - **A game lacking a feature must render NO control, not an empty one.**
+    Minecraft has no tiers (`tiers: []`), no progression, and no map datasets
+    (`datasets: []`), and correctly shows no tier chips, only Name/Category
+    sorts, and no Map tab. That is the §9 contract — keep it true.
+- **Known schema limit — no "any of a set" ingredient.** A recipe stores one
+  concrete ingredient id, so a Minecraft recipe keyed on a multi-member tag
+  (`#minecraft:logs` has 48 members) collapses to a single representative and the
+  tree reads "Campfire needs Oak Log ×3" when the truth is "any log". 93 recipes
+  are affected. The scraper logs every dropped alternate (PLAN.md §1), but a
+  truthful fix needs an optional `anyOf` on an ingredient plus UI support
+  (schema v3). Don't mistake the representative for the whole answer.
 - **Verify:** `npm run build`, `npm test`, and `npm run validate` must pass
   before any commit.
 - **Pages ordering gotcha:** if the repo is ever recreated, enable Pages
