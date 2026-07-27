@@ -46,7 +46,13 @@ function VariantDots({ variants }) {
 // (lowest-rarity) variant plus rarity dots for the rest; clicking always
 // opens the entry's `id`, which for a family is the base variant (PLAN.md
 // §5: "clicking it opens the tree of the base (common) variant").
-function ItemCard({ entry, onSelect }) {
+//
+// The "+" button (crafting-tasks feature) adds that same base variant to the
+// task list at qty 1. It sits on top of the card's own click-to-open handler,
+// so both the click AND the Enter/Space keyboard-activation path must stop
+// propagation — otherwise activating "+" would also fire the card's onSelect
+// and jump straight to the tree view.
+function ItemCard({ entry, onSelect, onAddTask }) {
   const { id, item, isFamily, variants } = entry;
 
   return (
@@ -60,8 +66,24 @@ function ItemCard({ entry, onSelect }) {
           onSelect(id);
         }
       }}
-      className="flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 shadow-sm transition-colors hover:border-zinc-600 hover:ring-1 hover:ring-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+      className="relative flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 shadow-sm transition-colors hover:border-zinc-600 hover:ring-1 hover:ring-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500"
     >
+      {onAddTask && (
+        <button
+          type="button"
+          title={`Add ${item.name} to tasks`}
+          aria-label={`Add ${item.name} to tasks`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddTask(id);
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+          className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800/90 text-sm font-semibold leading-none text-zinc-300 shadow-sm transition-colors hover:border-emerald-500/60 hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+        >
+          +
+        </button>
+      )}
+
       <div className="flex items-center gap-3">
         <ItemIcon src={item.icon} alt={item.name} />
         <div className="flex min-w-0 flex-col gap-1">
@@ -115,7 +137,7 @@ function RarityChip({ rarity, active, onClick }) {
 // hardcoded — so this works identically against the 16-item sample and the
 // eventual ~600+-item scrape. Family variants (PLAN.md §1) collapse to one
 // card with rarity dots.
-export function ItemBrowser({ items, stations, onSelect }) {
+export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState(null);
   const [rarity, setRarity] = useState(null);
@@ -239,7 +261,7 @@ export function ItemBrowser({ items, stations, onSelect }) {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {sorted.map((entry) => (
-              <ItemCard key={entry.id} entry={entry} onSelect={onSelect} />
+              <ItemCard key={entry.id} entry={entry} onSelect={onSelect} onAddTask={onAddTask} />
             ))}
           </div>
         )}
