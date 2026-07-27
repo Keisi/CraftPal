@@ -29,10 +29,26 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
 - **Icons:** local files only, `public/icons/<id>.webp` — never hotlink. The
   browse grid renders ~1600 cards, so `<img>` must stay `loading="lazy"`
   (eager loading pulls the whole ~14 MB icon set on first paint).
+- **Batch recipes are counted in CRAFTS, not pieces.** A recipe with
+  `yields > 1` can only be run whole — the game will not craft one round of
+  ammo when a craft makes 50 — so task quantities snap to a whole number of
+  crafts (`wholeBatches()` in `App.jsx`) and the Tasks row edits *crafts*.
+  Anything that surfaces a quantity for a `yields > 1` item must say what one
+  craft produces, or raising a target appears to change nothing and reads as
+  broken arithmetic. `plan.js`/`tree.js` still work in units internally —
+  `crafts = ceil(qty / yields)`.
+- **UI state that must survive navigation lives in `App`, not the component.**
+  Opening an item unmounts `ItemBrowser`, so browse filters
+  (`DEFAULT_BROWSE_FILTERS`) are owned by `App` and passed down controlled.
+  Same reason tree collapse state is lifted (below).
 - **Tree collapse state** lives in `App` keyed by node **path**
   (`tree.js`: `ROOT_PATH`/`childPath`/`collapsiblePaths`), never by itemId —
   the same ingredient appears at several positions in one tree and must fold
   independently. Both tree views share that state.
+- **Component files export only components** (oxlint `react(only-export-components)`
+  — keep helpers module-local or move them to `src/lib/`). Diagram zoom uses
+  CSS `zoom`, not `transform: scale()`, so the scroll container sizes to the
+  scaled tree.
 - **Git identity:** this is Kevin's *personal* project — commits must be
   authored `Keisi <ls.azuelo@gmail.com>` (set in the repo's local git config),
   never the work address. Pushes authenticate as the personal GitHub account.
