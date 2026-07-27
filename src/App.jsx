@@ -1,14 +1,47 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { items, stations } from './lib/data.js'
-import { buildTree } from './lib/tree.js'
+import { buildTree, collapsiblePaths } from './lib/tree.js'
 import { CraftTree } from './components/CraftTree.jsx'
 import { RawSummary } from './components/RawSummary.jsx'
 import { ItemBrowser, RarityBadge } from './components/ItemBrowser.jsx'
 import { RaritySwitcher } from './components/RaritySwitcher.jsx'
 
-function TreeHeader({ item, itemId, qty, onQtyChange, onBack, onSelectVariant }) {
+const VIEWS = [
+  { id: 'compact', label: 'Compact' },
+  { id: 'diagram', label: 'Diagram' },
+]
+
+function ToolbarButton({ children, onClick, active = false, title }) {
   return (
-    <header className="flex flex-wrap items-center gap-4 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`rounded-md border px-2.5 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500 ${
+        active
+          ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
+          : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function TreeHeader({
+  item,
+  itemId,
+  qty,
+  onQtyChange,
+  onBack,
+  onSelectVariant,
+  view,
+  onViewChange,
+  onCollapseAll,
+  onExpandAll,
+}) {
+  return (
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
       <button
         type="button"
         onClick={onBack}
@@ -24,20 +57,48 @@ function TreeHeader({ item, itemId, qty, onQtyChange, onBack, onSelectVariant })
 
       <RaritySwitcher items={items} currentId={itemId} onSelect={onSelectVariant} />
 
-      <label className="ml-auto flex items-center gap-2 text-sm text-zinc-400">
-        Qty
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={qty}
-          onChange={(event) => {
-            const next = Math.floor(Number(event.target.value))
-            onQtyChange(Number.isFinite(next) && next >= 1 ? next : 1)
-          }}
-          className="w-20 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
-        />
-      </label>
+      <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-1">
+          {VIEWS.map((option) => (
+            <ToolbarButton
+              key={option.id}
+              active={view === option.id}
+              onClick={() => onViewChange(option.id)}
+              title={
+                option.id === 'compact'
+                  ? 'Indented rows — bounded width'
+                  : 'Wide top-down diagram'
+              }
+            >
+              {option.label}
+            </ToolbarButton>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <ToolbarButton onClick={onCollapseAll} title="Fold every ingredient">
+            Collapse all
+          </ToolbarButton>
+          <ToolbarButton onClick={onExpandAll} title="Unfold every ingredient">
+            Expand all
+          </ToolbarButton>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-zinc-400">
+          Qty
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={qty}
+            onChange={(event) => {
+              const next = Math.floor(Number(event.target.value))
+              onQtyChange(Number.isFinite(next) && next >= 1 ? next : 1)
+            }}
+            className="w-20 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          />
+        </label>
+      </div>
     </header>
   )
 }
@@ -45,6 +106,10 @@ function TreeHeader({ item, itemId, qty, onQtyChange, onBack, onSelectVariant })
 function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [qty, setQty] = useState(1)
+  const [view, setView] = useState('compact')
+  // Collapse state lives here, keyed by node path, so it survives a view
+  // switch and can be driven wholesale by collapse/expand-all.
+  const [collapsed, setCollapsed] = useState(() => new Set())
 
   const selectedItem = selectedId ? items[selectedId] : null
 
@@ -56,15 +121,27 @@ function App() {
     [selectedId, qty],
   )
 
+  const toggleCollapsed = useCallback((path) => {
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }, [])
+
   function handleSelect(id) {
     setSelectedId(id)
     setQty(1)
+    setCollapsed(new Set())
   }
 
   // Rarity switcher (PLAN.md §5): swap the selected variant but deliberately
-  // leave qty untouched.
+  // leave qty untouched. Paths are position-based, so a different variant's
+  // recipe would fold the wrong rows — reset.
   function handleSelectVariant(id) {
     setSelectedId(id)
+    setCollapsed(new Set())
   }
 
   if (selectedItem && tree) {
@@ -77,10 +154,14 @@ function App() {
           onQtyChange={setQty}
           onBack={() => setSelectedId(null)}
           onSelectVariant={handleSelectVariant}
+          view={view}
+          onViewChange={setView}
+          onCollapseAll={() => setCollapsed(new Set(collapsiblePaths(tree)))}
+          onExpandAll={() => setCollapsed(new Set())}
         />
 
         <main className="flex-1 px-6 py-6">
-          <CraftTree tree={tree} />
+          <CraftTree tree={tree} view={view} collapsed={collapsed} onToggle={toggleCollapsed} />
         </main>
 
         <RawSummary tree={tree} />

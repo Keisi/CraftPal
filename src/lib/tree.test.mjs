@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { buildTree, aggregateRaw } from './tree.js';
+import { buildTree, aggregateRaw, collapsiblePaths, childPath, ROOT_PATH } from './tree.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -232,5 +232,35 @@ describe('real data: assault_rifle (common)', () => {
 
     // No stray raw materials beyond these 5.
     assert.equal(totals.size, 5);
+  });
+});
+
+describe('collapsiblePaths / childPath', () => {
+  const items = {
+    top: { name: 'Top', recipe: { stations: ['s'], ingredients: [{ item: 'mid', qty: 2 }, { item: 'raw', qty: 1 }] } },
+    mid: { name: 'Mid', recipe: { stations: ['s'], ingredients: [{ item: 'raw', qty: 3 }] } },
+    raw: { name: 'Raw' },
+  };
+
+  test('lists only nodes that have children, root first', () => {
+    const paths = collapsiblePaths(buildTree(items, 'top', 1));
+    assert.deepEqual(paths, [ROOT_PATH, childPath(ROOT_PATH, 0)]);
+  });
+
+  test('a leaf-only tree has nothing to collapse', () => {
+    assert.deepEqual(collapsiblePaths(buildTree(items, 'raw', 1)), []);
+  });
+
+  test('paths are position-based so a repeated item folds independently', () => {
+    // 'raw' appears under both 'mid' and 'top'; neither is collapsible, but
+    // their paths must differ so collapse state never aliases between them.
+    assert.notEqual(childPath(ROOT_PATH, 1), childPath(childPath(ROOT_PATH, 0), 0));
+  });
+
+  test('real data: every collapsible path in the assault_rifle tree is unique', () => {
+    const items = JSON.parse(readFileSync(path.join(__dirname, '..', 'data', 'items.json'), 'utf8')).items;
+    const paths = collapsiblePaths(buildTree(items, 'assault_rifle', 1));
+    assert.equal(new Set(paths).size, paths.length);
+    assert.ok(paths.includes(ROOT_PATH));
   });
 });

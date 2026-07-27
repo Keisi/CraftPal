@@ -54,3 +54,34 @@ export function aggregateRaw(node, totals = new Map()) {
   node.children.forEach((child) => aggregateRaw(child, totals));
   return totals;
 }
+
+/**
+ * Stable identity for a node's position in the tree. Collapse state is keyed
+ * by position, not itemId — the same ingredient can appear at several places
+ * in one tree (Coal under both Refined Ingot and Carbon Fiber), and folding
+ * one must not fold the others.
+ *
+ * @param {string} parentPath
+ * @param {number} index - child index within the parent.
+ * @returns {string}
+ */
+export function childPath(parentPath, index) {
+  return `${parentPath}.${index}`;
+}
+
+export const ROOT_PATH = 'r';
+
+/**
+ * Every node path that can be folded (i.e. has children), for "collapse all".
+ *
+ * @param {object} node - a buildTree() node.
+ * @param {string} [path=ROOT_PATH]
+ * @param {string[]} [out=[]] - accumulator (mutated + returned).
+ * @returns {string[]}
+ */
+export function collapsiblePaths(node, path = ROOT_PATH, out = []) {
+  if (node.children.length === 0) return out;
+  out.push(path);
+  node.children.forEach((child, index) => collapsiblePaths(child, childPath(path, index), out));
+  return out;
+}

@@ -1,48 +1,14 @@
-import { useState } from 'react';
-import { items, stations } from '../lib/data.js';
+import { items } from '../lib/data.js';
+import { childPath } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
+import { StationChip } from './StationChip.jsx';
 import { rarityBorderClass } from '../lib/rarity.js';
-
-// Lowest-techLevel station among a recipe's accepted stations (PLAN.md §5:
-// "UI shows the lowest-tech one by default").
-function lowestTechStationId(stationIds) {
-  if (!stationIds || stationIds.length === 0) return null;
-  return stationIds.reduce((lowestId, id) => {
-    const station = stations[id];
-    if (!station) return lowestId;
-    const lowest = lowestId ? stations[lowestId] : null;
-    if (!lowest || station.techLevel < lowest.techLevel) return id;
-    return lowestId;
-  }, null);
-}
-
-function StationChip({ stationIds }) {
-  const lowestId = lowestTechStationId(stationIds);
-  if (!lowestId) return null;
-  const lowest = stations[lowestId];
-
-  const title = stationIds
-    .map((id) => stations[id])
-    .filter(Boolean)
-    .sort((a, b) => a.techLevel - b.techLevel)
-    .map((s) => `${s.name} (Tech ${s.techLevel})`)
-    .join('\n');
-
-  return (
-    <div
-      title={title}
-      className="flex max-w-[9rem] items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800/90 px-2 py-1 text-[11px] text-zinc-300 shadow-sm"
-    >
-      <ItemIcon src={lowest.icon} alt={lowest.name} className="h-4 w-4" />
-      <span className="truncate">{lowest.name}</span>
-    </div>
-  );
-}
 
 // Per-node collapse (Phase 4, PLAN.md §5): clicking a node card that has
 // children folds/unfolds its subtree. View-only — the qty badge is always
 // computed from the full tree regardless of fold state, so re-expanding
-// never has to recompute anything.
+// never has to recompute anything. Collapse state is owned by App (keyed by
+// node path) so collapse/expand-all and the view toggle share it.
 function NodeCard({ node, hasChildren, collapsed, onToggle }) {
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
@@ -108,21 +74,28 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
 // caller (CraftTree, or a parent TreeNode) is responsible for the wrapping
 // <ul>; connector lines are drawn by plain CSS in src/index.css against the
 // resulting ul/li nesting.
-export function TreeNode({ node }) {
-  const [collapsed, setCollapsed] = useState(false);
+export function TreeNode({ node, path, collapsed, onToggle }) {
   const hasChildren = node.children.length > 0;
-
-  function toggle() {
-    setCollapsed((current) => !current);
-  }
+  const isCollapsed = collapsed.has(path);
 
   return (
     <li>
-      <NodeCard node={node} hasChildren={hasChildren} collapsed={collapsed} onToggle={toggle} />
-      {hasChildren && !collapsed && (
+      <NodeCard
+        node={node}
+        hasChildren={hasChildren}
+        collapsed={isCollapsed}
+        onToggle={() => onToggle(path)}
+      />
+      {hasChildren && !isCollapsed && (
         <ul>
           {node.children.map((child, index) => (
-            <TreeNode key={`${child.itemId}-${index}`} node={child} />
+            <TreeNode
+              key={`${child.itemId}-${index}`}
+              node={child}
+              path={childPath(path, index)}
+              collapsed={collapsed}
+              onToggle={onToggle}
+            />
           ))}
         </ul>
       )}

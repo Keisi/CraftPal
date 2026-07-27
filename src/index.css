@@ -8,7 +8,28 @@ body {
   margin: 0;
 }
 
-/* Crafting-tree connectors (Phase 2, PLAN.md §5) — classic CSS-borders tree
+/* Compact (default) tree view: indented rows. Depth is expressed by nesting
+   each child <ul> behind a vertical guide line, so width stays bounded no
+   matter how many leaves a recipe has. */
+
+.tree-rows,
+.tree-rows ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-rows li {
+  margin: 2px 0;
+}
+
+.tree-rows ul {
+  margin-left: 0.95rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid #3f3f46; /* zinc-700 */
+}
+
+/* Diagram (wide) tree connectors (Phase 2, PLAN.md §5) — classic CSS-borders tree
    technique: nested ul/li where li::before/::after draw half-width top
    borders (the horizontal spread between siblings) and a vertical stub
    connects each node down to its parent. A single child collapses to a
