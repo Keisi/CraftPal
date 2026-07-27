@@ -21,6 +21,10 @@ export function ItemIcon({ src, alt, className = 'h-16 w-16' }) {
     <img
       src={`${import.meta.env.BASE_URL}${src}`}
       alt={alt}
+      // The browse grid renders ~1600 cards; eager loading would pull the
+      // whole ~14 MB icon set on first paint.
+      loading="lazy"
+      decoding="async"
       className={`${className} shrink-0 rounded-md bg-zinc-800 object-contain p-1`}
       onError={() => setErrored(true)}
     />
