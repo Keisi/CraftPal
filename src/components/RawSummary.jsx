@@ -1,24 +1,17 @@
 import { useMemo } from 'react';
-import data from '../data/items.json';
-import { buildTree, aggregateRaw } from '../lib/tree.js';
+import { items } from '../lib/data.js';
+import { aggregateRaw } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 
-const items = data.items;
-
 // Sticky bottom "RAW MATERIALS" strip (PLAN.md §5), mirroring the reference
-// NMS-style infographic's totals panel. Accepts either an already-built
-// `tree` (to avoid recomputing when the caller already has one, e.g.
-// alongside CraftTree) or a bare (itemId, qty) pair.
-export function RawSummary({ tree, itemId, qty }) {
-  const resolvedTree = useMemo(
-    () => tree ?? buildTree(items, itemId, qty),
-    [tree, itemId, qty],
-  );
-
+// NMS-style infographic's totals panel. The tree is built once by the caller
+// (App, Phase 4 deferred refactor) and shared with CraftTree; RawSummary just
+// aggregates it.
+export function RawSummary({ tree }) {
   const totals = useMemo(() => {
-    const raw = aggregateRaw(resolvedTree);
+    const raw = aggregateRaw(tree);
     return [...raw.entries()].sort((a, b) => b[1] - a[1]);
-  }, [resolvedTree]);
+  }, [tree]);
 
   if (totals.length === 0) return null;
 

@@ -26,10 +26,24 @@ const BORDER_STYLES = {
   legendary: 'border-amber-500/70',
 };
 
+// Tiny solid dots (Phase 4, PLAN.md §5) — used on a collapsed family card to
+// show which rarity variants exist without spelling each one out.
+const DOT_STYLES = {
+  common: 'bg-gray-400',
+  uncommon: 'bg-green-400',
+  rare: 'bg-blue-400',
+  epic: 'bg-purple-400',
+  legendary: 'bg-amber-400',
+};
+
 export function rarityBadgeClass(rarity) {
   return BADGE_STYLES[rarity] ?? BADGE_STYLES.common;
 }
 
 export function rarityBorderClass(rarity) {
   return BORDER_STYLES[rarity] ?? BORDER_STYLES.common;
+}
+
+export function rarityDotClass(rarity) {
+  return DOT_STYLES[rarity] ?? DOT_STYLES.common;
 }

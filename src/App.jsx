@@ -1,56 +1,12 @@
-import { useState } from 'react'
-import data from './data/items.json'
-import { ItemIcon } from './components/ItemIcon.jsx'
+import { useMemo, useState } from 'react'
+import { items, stations } from './lib/data.js'
+import { buildTree } from './lib/tree.js'
 import { CraftTree } from './components/CraftTree.jsx'
 import { RawSummary } from './components/RawSummary.jsx'
-import { rarityBadgeClass } from './lib/rarity.js'
+import { ItemBrowser, RarityBadge } from './components/ItemBrowser.jsx'
+import { RaritySwitcher } from './components/RaritySwitcher.jsx'
 
-function RarityBadge({ rarity }) {
-  return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${rarityBadgeClass(rarity)}`}>
-      {rarity}
-    </span>
-  )
-}
-
-function CategoryBadge({ category }) {
-  return (
-    <span className="rounded-full border border-zinc-600/60 bg-zinc-700/40 px-2 py-0.5 text-xs font-medium capitalize text-zinc-300">
-      {category}
-    </span>
-  )
-}
-
-function ItemCard({ id, item, onSelect }) {
-  return (
-    <div
-      key={id}
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelect(id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onSelect(id)
-        }
-      }}
-      className="flex cursor-pointer flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 shadow-sm transition-colors hover:border-zinc-600 hover:ring-1 hover:ring-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-500"
-    >
-      <div className="flex items-center gap-3">
-        <ItemIcon src={item.icon} alt={item.name} />
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate font-medium text-zinc-100">{item.name}</span>
-          <div className="flex flex-wrap gap-1.5">
-            <CategoryBadge category={item.category} />
-            <RarityBadge rarity={item.rarity} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TreeHeader({ item, qty, onQtyChange, onBack }) {
+function TreeHeader({ item, itemId, qty, onQtyChange, onBack, onSelectVariant }) {
   return (
     <header className="flex flex-wrap items-center gap-4 border-b border-zinc-800 bg-zinc-900/50 px-6 py-4">
       <button
@@ -65,6 +21,8 @@ function TreeHeader({ item, qty, onQtyChange, onBack }) {
         <h2 className="text-lg font-semibold text-zinc-100">{item.name}</h2>
         <RarityBadge rarity={item.rarity} />
       </div>
+
+      <RaritySwitcher items={items} currentId={itemId} onSelect={onSelectVariant} />
 
       <label className="ml-auto flex items-center gap-2 text-sm text-zinc-400">
         Qty
@@ -85,33 +43,47 @@ function TreeHeader({ item, qty, onQtyChange, onBack }) {
 }
 
 function App() {
-  const items = data.items
-  const entries = Object.entries(items)
   const [selectedId, setSelectedId] = useState(null)
   const [qty, setQty] = useState(1)
 
   const selectedItem = selectedId ? items[selectedId] : null
+
+  // Deferred refactor (Phase 2 review, PLAN.md §5/§6): build the tree ONCE
+  // here and hand the same tree object to both CraftTree (renders it) and
+  // RawSummary (aggregates it) instead of each recomputing buildTree itself.
+  const tree = useMemo(
+    () => (selectedId ? buildTree(items, selectedId, qty) : null),
+    [selectedId, qty],
+  )
 
   function handleSelect(id) {
     setSelectedId(id)
     setQty(1)
   }
 
-  if (selectedItem) {
+  // Rarity switcher (PLAN.md §5): swap the selected variant but deliberately
+  // leave qty untouched.
+  function handleSelectVariant(id) {
+    setSelectedId(id)
+  }
+
+  if (selectedItem && tree) {
     return (
       <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
         <TreeHeader
           item={selectedItem}
+          itemId={selectedId}
           qty={qty}
           onQtyChange={setQty}
           onBack={() => setSelectedId(null)}
+          onSelectVariant={handleSelectVariant}
         />
 
         <main className="flex-1 px-6 py-6">
-          <CraftTree itemId={selectedId} qty={qty} />
+          <CraftTree tree={tree} />
         </main>
 
-        <RawSummary itemId={selectedId} qty={qty} />
+        <RawSummary tree={tree} />
       </div>
     )
   }
@@ -123,13 +95,7 @@ function App() {
         <p className="text-sm text-zinc-400">Palworld crafting-tree explorer</p>
       </header>
 
-      <main className="px-6 py-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {entries.map(([id, item]) => (
-            <ItemCard key={id} id={id} item={item} onSelect={handleSelect} />
-          ))}
-        </div>
-      </main>
+      <ItemBrowser items={items} stations={stations} onSelect={handleSelect} />
     </div>
   )
 }
