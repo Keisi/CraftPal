@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.6.x",
+  "items": {
+    "assault_rifle": {
+      "name": "Assault Rifle",
+      "icon": "icons/assault_rifle.webp",
+      "category": "weapon",
+      "rarity": "common",
+      "family": "assault_rifle",
+      "techLevel": 45,
+      "recipe": {
+        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "refined_ingot", "qty": 40 },
+          { "item": "polymer", "qty": 10 },
+          { "item": "carbon_fiber", "qty": 10 }
+        ]
+      }
+    },
+    "assault_rifle_uncommon": {
+      "name": "Assault Rifle (Uncommon)",
+      "icon": "icons/assault_rifle.webp",
+      "category": "weapon",
+      "rarity": "uncommon",
+      "family": "assault_rifle",
+      "recipe": {
+        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "refined_ingot", "qty": 50 },
+          { "item": "polymer", "qty": 12 },
+          { "item": "carbon_fiber", "qty": 12 },
+          { "item": "ancient_civilization_parts", "qty": 1 }
+        ]
+      }
+    },
+    "assault_rifle_rare": {
+      "name": "Assault Rifle (Rare)",
+      "icon": "icons/assault_rifle.webp",
+      "category": "weapon",
+      "rarity": "rare",
+      "family": "assault_rifle",
+      "recipe": {
+        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "refined_ingot", "qty": 60 },
+          { "item": "polymer", "qty": 15 },
+          { "item": "carbon_fiber", "qty": 15 },
+          { "item": "ancient_civilization_parts", "qty": 2 }
+        ]
+      }
+    },
+    "assault_rifle_epic": {
+      "name": "Assault Rifle (Epic)",
+      "icon": "icons/assault_rifle.webp",
+      "category": "weapon",
+      "rarity": "epic",
+      "family": "assault_rifle",
+      "recipe": {
+        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "refined_ingot", "qty": 70 },
+          { "item": "polymer", "qty": 17 },
+          { "item": "carbon_fiber", "qty": 17 },
+          { "item": "ancient_civilization_parts", "qty": 3 }
+        ]
+      }
+    },
+    "assault_rifle_legendary": {
+      "name": "Assault Rifle (Legendary)",
+      "icon": "icons/assault_rifle.webp",
+      "category": "weapon",
+      "rarity": "legendary",
+      "family": "assault_rifle",
+      "recipe": {
+        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "refined_ingot", "qty": 80 },
+          { "item": "polymer", "qty": 20 },
+          { "item": "carbon_fiber", "qty": 20 },
+          { "item": "ancient_civilization_parts", "qty": 4 }
+        ]
+      }
+    },
+    "refined_ingot": {
+      "name": "Refined Ingot",
+      "icon": "icons/refined_ingot.webp",
+      "category": "material",
+      "rarity": "common",
+      "recipe": {
+        "stations": ["improved_furnace", "electric_furnace", "gigantic_furnace", "ancient_furnace"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "ore", "qty": 2 },
+          { "item": "coal", "qty": 2 }
+        ]
+      }
+    },
+    "polymer": {
+      "name": "Polymer",
+      "icon": "icons/polymer.webp",
+      "category": "material",
+      "rarity": "common",
+      "techLevel": 33,
+      "recipe": {
+        "stations": ["production_assembly_line", "production_assembly_line_2", "advanced_workshop", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "high_quality_pal_oil", "qty": 2 },
+          { "item": "sulfur", "qty": 1 }
+        ]
+      }
+    },
+    "carbon_fiber": {
+      "name": "Carbon Fiber",
+      "icon": "icons/carbon_fiber.webp",
+      "category": "material",
+      "rarity": "common",
+      "techLevel": 35,
+      "recipe": {
+        "stations": ["production_assembly_line", "production_assembly_line_2", "advanced_workshop", "ancient_workbench"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "coal", "qty": 2 },
+          { "item": "flame_organ", "qty": 1 }
+        ]
+      }
+    },
+    "ancient_civilization_parts": {
+      "name": "Ancient Civilization Parts",
+      "icon": "icons/ancient_civilization_parts.webp",
+      "category": "material",
+      "rarity": "rare"
+    },
+    "ore": {
+      "name": "Ore",
+      "icon": "icons/ore.webp",
+      "category": "material",
+      "rarity": "common"
+    },
+    "coal": {
+      "name": "Coal",
+      "icon": "icons/coal.webp",
+      "category": "material",
+      "rarity": "common"
+    },
+    "charcoal": {
+      "name": "Charcoal",
+      "icon": "icons/charcoal.webp",
+      "category": "material",
+      "rarity": "common",
+      "recipe": {
+        "stations": ["primitive_furnace", "improved_furnace", "electric_furnace", "gigantic_furnace", "ancient_furnace"],
+        "yields": 1,
+        "ingredients": [
+          { "item": "wood", "qty": 2 }
+        ]
+      }
+    },
+    "wood": {
+      "name": "Wood",
+      "icon": "icons/wood.webp",
+      "category": "material",
+      "rarity": "common"
+    },
+    "high_quality_pal_oil": {
+      "name": "High Quality Pal Oil",
+      "icon": "icons/high_quality_pal_oil.webp",
+      "category": "material",
+      "rarity": "common"
+    },
+    "sulfur": {
+      "name": "Sulfur",
+      "icon": "icons/sulfur.webp",
+      "category": "material",
+      "rarity": "common"
+    },
+    "flame_organ": {
+      "name": "Flame Organ",
+      "icon": "icons/flame_organ.webp",
+      "category": "material",
+      "rarity": "common"
+    }
+  }
+}
