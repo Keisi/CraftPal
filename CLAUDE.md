@@ -101,9 +101,15 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
   (`vite.config.js` sets `base` on build). Any runtime-constructed asset URL
   must be prefixed with `import.meta.env.BASE_URL` (see `ItemIcon.jsx`) —
   never a hardcoded leading `/`.
-- **Adding another game** (validated 2026-07-27 by porting Minecraft — 1,610
-  items — on the local-only `feat/minecraft-game` branch, which is deliberately
-  never merged because Pages serves Palworld):
+- **Minecraft is archived, not shipped.** `src/data/minecraft/` +
+  `public/games/minecraft/` exist for posterity (they validated §9 — see below)
+  and are **never part of the deployed site**: the Pages workflow runs a bare
+  `npm run build`, which defaults to `palworld`, and a build-only Vite plugin
+  prunes every other game's `dist/games/<game>` dir so no foreign asset is
+  published. Run it locally with `VITE_GAME=minecraft npm run dev`. Do not wire
+  Minecraft into anything CraftPal serves.
+- **Adding another game** (validated 2026-07-27 by porting Minecraft, 1,610
+  items):
   - Three touchpoints only: `src/data/<game>/game.json` (manifest),
     `scripts/fetch-<game>.mjs` (the per-game adapter — game-specific translation
     belongs *here*, never in the UI), and the build-time game switch.
@@ -118,8 +124,8 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
     `virtual:game-data` specifier to just the selected game's
     `src/data/<game>/index.js` in `vite.config.js`, keyed off `process.env.VITE_GAME`
     with `palworld` as the default) so the other game's data is *provably absent*
-    from the module graph rather than hopefully shaken out. Working
-    implementation: the `feat/minecraft-game` branch.
+    from the module graph rather than hopefully shaken out. That is how
+    `vite.config.js` does it now.
   - **Ids follow each game's own native convention** — Palworld is kebab-case
     from paldb codes, Minecraft is snake_case from vanilla ids. Don't normalise
     across games; native ids are the stable ones.
