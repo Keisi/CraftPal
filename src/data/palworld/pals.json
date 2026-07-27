@@ -10044,6 +10044,34 @@
         "radius": 15000
       }
     },
+    "plantslime_flower": {
+      "name": "Gumoss",
+      "code": "PlantSlime_Flower",
+      "icon": "icons/pals/plantslime.webp",
+      "drops": [
+        {
+          "item": "berry_seeds",
+          "name": "Berry Seeds",
+          "rate": "100%",
+          "qty": "1"
+        },
+        {
+          "item": "gumoss_leaf",
+          "name": "Gumoss Leaf",
+          "rate": "50%",
+          "qty": "1"
+        }
+      ],
+      "hasHabitat": true,
+      "discoveredVia": "datatable",
+      "habitat": {
+        "day": 24,
+        "night": 24,
+        "levelMin": 2,
+        "levelMax": 2,
+        "radius": 15000
+      }
+    },
     "plesiosaur": {
       "name": "Braloha",
       "code": "Plesiosaur",

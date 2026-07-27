@@ -152,7 +152,17 @@ function validatePals(gameId, palsPath, publicAssetDir, habitatsDir, habitatPoin
   for (const [id, pal] of Object.entries(pals)) {
     if (!pal.name) errors.push(`[${gameId}] pal "${id}": missing non-empty name`)
     if (!pal.code) errors.push(`[${gameId}] pal "${id}": missing non-empty code`)
-    checkIcon(errors, 'pal', gameId, publicAssetDir, id, pal.icon)
+    // A pal discovered only via the DataTable union (fetch-pals.mjs,
+    // PLAN.md §8) has a *derived* icon URL, not one scraped from a working
+    // <img> tag on /en/Pals — it can genuinely 404 upstream. fetch-pals.mjs
+    // tries the derived URL, then falls back to its base species' icon
+    // (paldb's <Base>_<Suffix> variant convention) before giving up, so in
+    // practice this only bites when BOTH 404 — kept as a safety net for that
+    // case, recording icon: null rather than inventing a path. Every other
+    // pal (discoveredVia absent) must still resolve to a real file.
+    if (pal.icon != null || pal.discoveredVia !== 'datatable') {
+      checkIcon(errors, 'pal', gameId, publicAssetDir, id, pal.icon)
+    }
 
     for (const [i, drop] of (pal.drops ?? []).entries()) {
       if (!drop.name) errors.push(`[${gameId}] pal "${id}": drop[${i}] missing non-empty name`)

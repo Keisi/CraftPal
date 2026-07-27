@@ -4,16 +4,17 @@
 // downloads pal icons. See PLAN.md §8.
 //
 // Usage:
-//   node scripts/fetch-pals.mjs [--limit=N] [--only=index,detail,habitat,icon] [--verbose]
+//   node scripts/fetch-pals.mjs [--limit=N] [--only=index,datatable,detail,habitat,icon] [--verbose]
 //
-// --limit=N   caps the number of NEW network requests (page/habitat/icon
-//             fetches) issued in this invocation. Already-cached responses
-//             don't count. Re-run to resume — everything is cached under
-//             scripts/.cache/ so a re-run only fetches what's missing.
+// --limit=N   caps the number of NEW network requests (page/datatable/habitat/
+//             icon fetches) issued in this invocation. Already-cached
+//             responses don't count. Re-run to resume — everything is cached
+//             under scripts/.cache/ so a re-run only fetches what's missing.
 // --only=...  restricts which phases are allowed to issue NEW network
-//             requests (comma list of index,detail,habitat,icon). A phase
-//             not listed still uses its cache if present, but won't fetch.
-//             Useful for iterating on one parser without re-hitting the site.
+//             requests (comma list of index,datatable,detail,habitat,icon). A
+//             phase not listed still uses its cache if present, but won't
+//             fetch. Useful for iterating on one parser without re-hitting
+//             the site.
 //
 // Design:
 //   1. Discover the pal roster from the server-rendered card grid at
@@ -21,6 +22,24 @@
 //      internal pal "code" recovered from the icon CDN filename pattern
 //      T_<Code>_icon_normal.webp. The code, lowercased, is the join key for
 //      both the habitat endpoint below and palworld.gg (crosscheck script).
+//   1a. UNION that roster with the raw game DataTable
+//      (/DataTable/UI/DT_PaldexDistributionData.json, ~18.7 MB, one big
+//      fetch): /en/Pals is narrower than the data paldb actually serves — it
+//      silently omitted PlantSlime_Flower (24 day / 24 night real spawns)
+//      even though /paldex/plantslime_flower.json returns them (found via
+//      palworld.gg cross-check 2026-07-27). We parse the DataTable exactly
+//      once and keep only its row KEYS (never its Locations — the per-pal
+//      /paldex/<code>.json endpoint stays the habitat source of truth, since
+//      it carries `lv` and the DataTable does not), excluding two classes of
+//      row that are not roster gaps: `BOSS_*`/`Boss_*` alpha/boss variants
+//      (fixed spawns already covered by map.json's Alpha Pal layer) and the
+//      literal `RowName` sentinel (a DataTable template artifact carrying
+//      fake 18/18 locations, not a pal). Every surviving code absent from
+//      the index roster is a genuine gap: its display name/href/icon aren't
+//      known from HTML, so they're resolved from /paldex/<code>.json's
+//      `Name` field and the CDN icon-filename pattern instead, and flagged
+//      `discoveredVia: "datatable"` in the output so it's visible in the
+//      data which pals didn't come from the index page.
 //   2. Fetch each pal detail page /en/<href> (throttled, cached) and parse
 //      its "Possible Drops" table (item name + drop-rate + qty range).
 //   3. Fetch each pal's habitat point cloud from the stable per-pal endpoint
@@ -31,6 +50,10 @@
 //      src/data/items.json if the multigame restructure hasn't moved it
 //      yet). Unmatched drops are still emitted with item: null.
 //   5. Download every pal icon once (throttled + cached, skip existing).
+//      A DataTable-only pal's icon URL is derived rather than scraped, so it
+//      can genuinely 404; when it does, fall back to its base species' icon
+//      (paldb's <Base>_<Suffix> variant convention — the same one CLAUDE.md
+//      already documents for item icons) before recording icon: null.
 //   6. Emit src/data/palworld/pals.json (small static-importable index, no
 //      coordinates), one public/games/palworld/data/habitats/<code>.json
 //      per pal (lazy-loaded, compact flat-triple arrays), and a run report.
@@ -47,6 +70,7 @@ const CACHE_DIR = path.join(ROOT, 'scripts', '.cache')
 const PAL_PAGES_DIR = path.join(CACHE_DIR, 'pal-pages')
 const PAL_HABITATS_CACHE_DIR = path.join(CACHE_DIR, 'pal-habitats')
 const PAL_ICONS_CACHE_DIR = path.join(CACHE_DIR, 'pal-icons')
+const PAL_DATATABLE_CACHE_DIR = path.join(CACHE_DIR, 'pal-datatable')
 
 const PALS_OUT = path.join(ROOT, 'src', 'data', 'palworld', 'pals.json')
 const PUBLIC_HABITATS_DIR = path.join(ROOT, 'public', 'games', 'palworld', 'data', 'habitats')
@@ -61,12 +85,24 @@ const ITEMS_PATH_FALLBACK = path.join(ROOT, 'src', 'data', 'items.json')
 const BASE = 'https://paldb.cc'
 const PALS_INDEX_URL = `${BASE}/en/Pals`
 const VERSION_URL = `${BASE}/en/version`
+const DATATABLE_URL = `${BASE}/DataTable/UI/DT_PaldexDistributionData.json`
+const PAL_ICON_CDN = 'https://cdn.paldb.cc/image/Pal/Texture/PalIcon/Normal'
 const REFERER = 'https://paldb.cc/'
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 const MIN_INTERVAL_MS = 500
 const FALLBACK_GAME_VERSION = '0.6.x'
-const VALID_PHASES = new Set(['index', 'detail', 'habitat', 'icon'])
+const VALID_PHASES = new Set(['index', 'detail', 'habitat', 'icon', 'datatable'])
+
+// DataTable row-key exclusion rules (see discoverDataTableCodes()) — each
+// with its own rationale so a future reader doesn't have to re-derive it:
+//   - alpha/boss variants: fixed spawns already covered by map.json's Alpha
+//     Pal layer (PLAN.md §8), so they are not a roster gap. Observed casings
+//     are inconsistent (`BOSS_*`, `Boss_*`) hence case-insensitive.
+const BOSS_ROW_PREFIX_RE = /^boss_/i
+//   - the literal row key "RowName": a DataTable template/sentinel artifact,
+//     not a pal (it even carries fake 18/18 "locations").
+const DATATABLE_SENTINEL_KEY = 'RowName'
 
 // Tripwires — same rationale + style as fetch-map.mjs's MIN_MARKERS_TRIPWIRE:
 // a scraper that silently returns less is worse than one that dies (PLAN.md).
@@ -75,17 +111,22 @@ const VALID_PHASES = new Set(['index', 'detail', 'habitat', 'icon'])
 // happily write a near-empty pals.json while reporting "success" — the exact
 // failure mode fetch-map.mjs already guards against for map markers.
 //
-// MIN_PAL_ROSTER_TRIPWIRE is checked unconditionally right after discovery:
-// /en/Pals is a single page, fetched or served from cache in full regardless
-// of --limit/--only, so a short roster here is never a legitimate partial
-// run — it can only mean the page didn't parse as expected.
-const MIN_PAL_ROSTER_TRIPWIRE = 200 // real roster on 2026-07-27 is 299 pals
+// MIN_PAL_ROSTER_TRIPWIRE is checked right after discovery (index roster +
+// DataTable union). The index-page portion (/en/Pals) is a single page,
+// fetched or served from cache in full regardless of --limit/--only, so it
+// alone already clears this floor with room to spare — a short roster here
+// is never a legitimate partial run, it can only mean a page didn't parse as
+// expected. (The DataTable-union addition on top of it CAN legitimately be
+// incomplete under --only/--limit — see the DataTable-union log line — but
+// that never brings the total below the index-only count, so the floor
+// stays a valid hard-error signal either way.)
+const MIN_PAL_ROSTER_TRIPWIRE = 250 // real roster on 2026-07-27 is 300 pals (299 from /en/Pals + 1 added by the DataTable union: PlantSlime_Flower)
 
 // MIN_HABITATS_TRIPWIRE is only asserted when this run actually had a chance
 // to observe habitat availability across the WHOLE roster (see
 // habitatFloorApplies in main()) — otherwise a --limit'd or --only-restricted
 // incremental invocation would false-fire constantly during development.
-const MIN_HABITATS_TRIPWIRE = 200 // real count on 2026-07-27 is 278/299 (21 are genuine upstream 404s for unique/boss pals)
+const MIN_HABITATS_TRIPWIRE = 200 // real count on 2026-07-27 is 279/300 (21 are genuine upstream 404s for unique/boss pals; the +1 over the old 278/299 is PlantSlime_Flower, which does have real habitat data)
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -104,7 +145,7 @@ for (const arg of args) {
 if (ONLY) {
   for (const phase of ONLY) {
     if (!VALID_PHASES.has(phase)) {
-      console.error(`fetch-pals: unknown --only phase "${phase}" (valid: index,detail,habitat,icon)`)
+      console.error(`fetch-pals: unknown --only phase "${phase}" (valid: index,datatable,detail,habitat,icon)`)
       process.exit(1)
     }
   }
@@ -273,6 +314,55 @@ async function discoverPals(report) {
 }
 
 // ---------------------------------------------------------------------------
+// DataTable union: /DataTable/UI/DT_PaldexDistributionData.json -> row keys
+// ---------------------------------------------------------------------------
+/**
+ * Fetch the raw game DataTable (~18.7 MB) and return just its row KEYS,
+ * split into eligible pal codes vs. the two excluded classes (see the
+ * BOSS_ROW_PREFIX_RE / DATATABLE_SENTINEL_KEY comments above). We do not need
+ * Locations here — the per-pal /paldex/<code>.json endpoint remains the
+ * habitat source of truth (it carries `lv`; this DataTable does not) — so
+ * the parsed document is scoped to this function and dropped the moment the
+ * keys are extracted, never duplicated or held onto alongside the raw text.
+ */
+async function discoverDataTableCodes(report) {
+  const text = await fetchCached({
+    url: DATATABLE_URL,
+    cacheDir: PAL_DATATABLE_CACHE_DIR,
+    cacheKey: '_dt_paldex_distribution',
+    ext: 'json',
+    phaseName: 'datatable',
+    report,
+  })
+  if (!text) return { codes: [], totalRows: 0, excludedBoss: 0, excludedSentinel: 0, unavailable: true }
+
+  let allKeys
+  {
+    // Parse exactly once; only Object.keys(Rows) survives this block — the
+    // 18.7 MB parsed doc (with every pal's Locations) is eligible for GC as
+    // soon as this block exits.
+    const doc = JSON.parse(text)
+    allKeys = Object.keys(doc[0]?.Rows ?? {})
+  }
+
+  let excludedBoss = 0
+  let excludedSentinel = 0
+  const codes = []
+  for (const key of allKeys) {
+    if (BOSS_ROW_PREFIX_RE.test(key)) {
+      excludedBoss++ // alpha/boss variant — covered by map.json's Alpha Pal layer, not a roster gap
+      continue
+    }
+    if (key === DATATABLE_SENTINEL_KEY) {
+      excludedSentinel++ // DataTable template/sentinel artifact, not a pal
+      continue
+    }
+    codes.push(key)
+  }
+  return { codes, totalRows: allKeys.length, excludedBoss, excludedSentinel, unavailable: false }
+}
+
+// ---------------------------------------------------------------------------
 // Detail page: "Possible Drops" table
 // ---------------------------------------------------------------------------
 function parseDropsTable($, href, report) {
@@ -395,6 +485,7 @@ async function main() {
   ensureDir(PAL_PAGES_DIR)
   ensureDir(PAL_HABITATS_CACHE_DIR)
   ensureDir(PAL_ICONS_CACHE_DIR)
+  ensureDir(PAL_DATATABLE_CACHE_DIR)
   ensureDir(path.dirname(PALS_OUT))
   ensureDir(PUBLIC_HABITATS_DIR)
   ensureDir(PUBLIC_PAL_ICONS_DIR)
@@ -418,8 +509,53 @@ async function main() {
   log('fetch-pals: discovering pal roster from /en/Pals...')
   const gameVersion = await discoverGameVersion(report)
   const pals = await discoverPals(report)
+  const indexPalCount = pals.size
+  log(`fetch-pals: ${indexPalCount} pals from /en/Pals`)
+
+  // --- DataTable union: catch pals the index page silently omits ----------
+  log('fetch-pals: cross-checking against the raw DataTable (DT_PaldexDistributionData.json)...')
+  const dt = await discoverDataTableCodes(report)
+  log(
+    `fetch-pals: DataTable has ${dt.totalRows} rows (excluded ${dt.excludedBoss} boss/alpha variant(s), ` +
+      `${dt.excludedSentinel} sentinel row) -> ${dt.codes.length} eligible pal code(s)`,
+  )
+
+  const addedByDataTable = []
+  const unresolvedDataTableCodes = []
+  for (const rawCode of dt.codes) {
+    const codeLower = rawCode.toLowerCase()
+    if (pals.has(codeLower)) continue // already known from /en/Pals — not a gap
+
+    // Name/href/icon aren't known from HTML for a DataTable-only pal, so
+    // resolve them: /paldex/<code>.json's `Name` field gives the display
+    // name (also the habitat source of truth, per the module comment); the
+    // detail-page href is derived from that name (paldb slugs use
+    // underscores for spaces); the icon URL is derived from the CDN's stable
+    // filename pattern. fetchHabitat() is cached/throttled/--limit-gated
+    // exactly like every other request here, so calling it this early (the
+    // "habitat" phase loop below will simply hit its cache for this code).
+    const habitat = await fetchHabitat(codeLower, report)
+    if (!habitat?.name) {
+      unresolvedDataTableCodes.push(rawCode) // offline this run, or a genuine upstream gap — retry next run
+      continue
+    }
+    const href = habitat.name.trim().replace(/\s+/g, '_')
+    const iconUrl = `${PAL_ICON_CDN}/T_${rawCode}_icon_normal.webp`
+    pals.set(codeLower, { code: rawCode, name: habitat.name, href, iconUrl, discoveredVia: 'datatable' })
+    addedByDataTable.push(codeLower)
+  }
+  report.dataTableUnavailable = dt.unavailable
+  report.dataTableExcludedBoss = dt.excludedBoss
+  report.dataTableExcludedSentinel = dt.excludedSentinel
+  report.dataTableAdded = addedByDataTable.sort()
+  report.dataTableUnresolved = unresolvedDataTableCodes.sort()
+  log(
+    `fetch-pals: roster union — ${indexPalCount} from /en/Pals + ${addedByDataTable.length} added by the ` +
+      `DataTable${unresolvedDataTableCodes.length > 0 ? ` (${unresolvedDataTableCodes.length} DataTable-only code(s) unresolved this run)` : ''}`,
+  )
+
   const codes = [...pals.keys()].sort((a, b) => a.localeCompare(b))
-  log(`fetch-pals: discovered ${codes.length} pals, gameVersion=${gameVersion}`)
+  log(`fetch-pals: discovered ${codes.length} pals total, gameVersion=${gameVersion}`)
 
   if (codes.length < MIN_PAL_ROSTER_TRIPWIRE) {
     throw new Error(
@@ -481,9 +617,14 @@ async function main() {
   // --- Phase: icons -----------------------------------------------------------
   let iconsPresent = 0
   let iconsWritten = 0
+  let iconsFallback = 0 // DataTable-only variant reused/fetched its base species' icon
   let iconsMissing = 0
+  // codeLower -> "icons/pals/<baseCodeLower>.webp" for entries that ended up
+  // pointing at a base pal's icon file instead of their own (populated below,
+  // consumed when building each pal's final `icon` field further down).
+  const iconFallbackPathByCode = new Map()
   for (const codeLower of codes) {
-    const { iconUrl } = pals.get(codeLower)
+    const { iconUrl, code, discoveredVia } = pals.get(codeLower)
     const publicPath = path.join(PUBLIC_PAL_ICONS_DIR, `${codeLower}.webp`)
     if (existsSync(publicPath)) {
       iconsPresent++
@@ -501,11 +642,50 @@ async function main() {
     if (bytes) {
       writeFileSync(publicPath, bytes)
       iconsWritten++
-    } else {
-      iconsMissing++
+      continue
     }
+
+    // A DataTable-only pal's own derived icon URL 404ing doesn't mean paldb
+    // has no icon for it: paldb's <Base>_<Suffix> variant-code convention
+    // (the same one CLAUDE.md documents for item icons — "variants of a
+    // family may share one icon file") often means the BASE species' icon is
+    // the one actually rendered for this variant. Try that before giving up:
+    // reuse the base pal's file if it's already on disk — `codes` is sorted
+    // alphabetically, so a base code like "plantslime" always precedes its
+    // "plantslime_flower" variant in this very loop, meaning the base file
+    // normally already exists by the time we get here — else fetch the base
+    // code's own CDN URL. Only if BOTH fail do we fall through to icon: null
+    // (never invent a path to a file that isn't actually there).
+    let usedFallback = false
+    if (discoveredVia === 'datatable' && code.includes('_')) {
+      const baseCode = code.slice(0, code.lastIndexOf('_'))
+      const baseCodeLower = baseCode.toLowerCase()
+      const basePublicPath = path.join(PUBLIC_PAL_ICONS_DIR, `${baseCodeLower}.webp`)
+      if (existsSync(basePublicPath)) {
+        usedFallback = true
+      } else {
+        const baseBytes = await fetchCached({
+          url: `${PAL_ICON_CDN}/T_${baseCode}_icon_normal.webp`,
+          cacheDir: PAL_ICONS_CACHE_DIR,
+          cacheKey: baseCodeLower,
+          ext: 'webp',
+          phaseName: 'icon',
+          binary: true,
+          report,
+        })
+        if (baseBytes) {
+          writeFileSync(basePublicPath, baseBytes)
+          usedFallback = true
+        }
+      }
+      if (usedFallback) iconFallbackPathByCode.set(codeLower, `icons/pals/${baseCodeLower}.webp`)
+    }
+    if (usedFallback) iconsFallback++
+    else iconsMissing++
   }
-  log(`fetch-pals: icons ${iconsPresent} present, ${iconsWritten} written, ${iconsMissing} missing`)
+  log(
+    `fetch-pals: icons ${iconsPresent} present, ${iconsWritten} written, ${iconsFallback} via base-code fallback, ${iconsMissing} missing`,
+  )
 
   if (limitReached) {
     report.partial = true
@@ -526,7 +706,7 @@ async function main() {
   let habitatsWithData = 0
 
   for (const codeLower of codes) {
-    const { code, name } = pals.get(codeLower)
+    const { code, name, discoveredVia } = pals.get(codeLower)
     const detailHtml = detailByCode.get(codeLower)
     let drops = []
     if (detailHtml) {
@@ -544,13 +724,21 @@ async function main() {
     }
 
     const habitat = habitatByCode.get(codeLower)
+    // Icon presence is checked against the real file on disk rather than
+    // assumed — a scraped index-page pal's icon has never failed to date,
+    // but a DataTable-only pal's icon URL is *derived* (not scraped from a
+    // working <img> tag) and can genuinely 404 (see the icon phase above,
+    // including the base-code fallback it tries before giving up).
+    const iconOnDisk = existsSync(path.join(PUBLIC_PAL_ICONS_DIR, `${codeLower}.webp`))
+    const icon = iconOnDisk ? `icons/pals/${codeLower}.webp` : (iconFallbackPathByCode.get(codeLower) ?? null)
     const entry = {
       name,
       code,
-      icon: `icons/pals/${codeLower}.webp`,
+      icon,
       drops,
       hasHabitat: !!habitat,
     }
+    if (discoveredVia) entry.discoveredVia = discoveredVia
 
     if (habitat) {
       habitatsWithData++
@@ -582,10 +770,30 @@ async function main() {
   const palsDoc = { schemaVersion: 1, gameVersion, pals: finalPals }
   writeFileSync(PALS_OUT, JSON.stringify(palsDoc, null, 2) + '\n', 'utf8')
 
+  // DataTable-only pals get an explicit health check of their own: their
+  // icon/drops are both *derived* rather than scraped straight from a known
+  // href, so either one can legitimately come up empty (§ the module
+  // comment) — surface that in the report/console rather than let it hide
+  // inside the aggregate counts. A fallback-icon entry is real (a file exists
+  // on disk, just under the base pal's code) — distinguished from iconless
+  // (no file at all) by comparing the final icon path to "own code" shape.
+  const dataTableOnlyIds = codes.filter((c) => pals.get(c).discoveredVia === 'datatable')
+  const dataTableOnlyIconFallback = dataTableOnlyIds.filter(
+    (c) => finalPals[c].icon && finalPals[c].icon !== `icons/pals/${c}.webp`,
+  )
+  const dataTableOnlyIconless = dataTableOnlyIds.filter((c) => !finalPals[c].icon)
+  const dataTableOnlyDropless = dataTableOnlyIds.filter((c) => finalPals[c].drops.length === 0)
+
   report.finishedAt = new Date().toISOString()
   report.gameVersion = gameVersion
   report.counts = {
     pals: codes.length,
+    indexPals: indexPalCount,
+    dataTableTotalRows: dt.totalRows,
+    dataTableExcludedBoss: dt.excludedBoss,
+    dataTableExcludedSentinel: dt.excludedSentinel,
+    dataTableAdded: addedByDataTable.length,
+    dataTableUnresolved: unresolvedDataTableCodes.length,
     detailPagesAvailable: detailByCode.size,
     detailPagesNewlyFetched: detailNewlyFetched,
     habitatsAvailable: habitatByCode.size,
@@ -594,26 +802,48 @@ async function main() {
     habitatsMissing: codes.length - habitatsWithData,
     iconsPresent,
     iconsWritten,
+    iconsFallback,
     iconsMissing,
     totalDropRows,
     dropsMatched,
     dropsUnmatched: totalDropRows - dropsMatched,
   }
   report.unmatchedDropNames = [...report.unmatchedDropNames].sort()
+  report.dataTableOnlyPals = {
+    count: dataTableOnlyIds.length,
+    ids: dataTableOnlyIds,
+    iconFallback: dataTableOnlyIconFallback,
+    iconless: dataTableOnlyIconless,
+    dropless: dataTableOnlyDropless,
+  }
   report.partial =
-    report.partial || limitReached || detailByCode.size < codes.length || habitatByCode.size < codes.length
+    report.partial ||
+    limitReached ||
+    detailByCode.size < codes.length ||
+    habitatByCode.size < codes.length ||
+    unresolvedDataTableCodes.length > 0
 
   writeFileSync(REPORT_OUT, JSON.stringify(report, null, 2) + '\n', 'utf8')
 
   const matchRate = totalDropRows > 0 ? ((dropsMatched / totalDropRows) * 100).toFixed(1) : 'n/a'
   log('')
   log(`fetch-pals: ${report.partial ? 'PARTIAL' : 'COMPLETE'} run summary`)
-  log(`  pals: ${report.counts.pals}`)
+  log(`  pals: ${report.counts.pals} (${report.counts.indexPals} from /en/Pals + ${report.counts.dataTableAdded} added by the DataTable union)`)
+  log(
+    `  DataTable: ${report.counts.dataTableTotalRows} rows, excluded ${report.counts.dataTableExcludedBoss} boss/alpha variant(s) + ${report.counts.dataTableExcludedSentinel} sentinel row` +
+      (report.counts.dataTableUnresolved > 0 ? `, ${report.counts.dataTableUnresolved} unresolved this run` : ''),
+  )
+  if (dataTableOnlyIds.length > 0) {
+    log(`  DataTable-only pals (${dataTableOnlyIds.length}): ${dataTableOnlyIds.join(', ')}`)
+    if (dataTableOnlyIconFallback.length > 0) log(`    icon via base-code fallback: ${dataTableOnlyIconFallback.join(', ')}`)
+    if (dataTableOnlyIconless.length > 0) log(`    WARNING: icon-less (own + base-code CDN URLs both 404'd): ${dataTableOnlyIconless.join(', ')}`)
+    if (dataTableOnlyDropless.length > 0) log(`    WARNING: drop-less (derived detail page 404'd or had no Possible Drops): ${dataTableOnlyDropless.join(', ')}`)
+  }
   log(`  detail pages: ${report.counts.detailPagesAvailable}/${report.counts.pals} (${detailNewlyFetched} new)`)
   log(
     `  habitats: ${report.counts.habitatsWithData}/${report.counts.pals} with data (${habitatNewlyFetched} new fetches)`
   )
-  log(`  icons: ${iconsPresent} present, ${iconsWritten} written, ${iconsMissing} missing`)
+  log(`  icons: ${iconsPresent} present, ${iconsWritten} written, ${iconsFallback} via base-code fallback, ${iconsMissing} missing`)
   log(`  drops: ${totalDropRows} rows, ${dropsMatched} matched (${matchRate}%), ${totalDropRows - dropsMatched} unmatched`)
   log(`  items source used for matching: ${report.itemsSource ?? '(none found)'}`)
   if (report.unmatchedDropNames.length > 0) {
