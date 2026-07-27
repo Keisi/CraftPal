@@ -71,14 +71,20 @@ function TargetList({ tasks, onQtyChange, onRemove, onClearAll }) {
   );
 }
 
-// One craft step: number badge, checkbox, icon, "Craft N× Name" with a
-// secondary "M crafts → N Name" line when a batch recipe (yields > 1) means
-// crafts and qty differ. Ticked steps are visibly de-emphasised (dimmed +
-// strikethrough) but stay in place — the order doesn't change on tick.
+// One craft step: number badge, checkbox, icon, "Craft N× Name".
+//
+// Batch recipes (yields > 1) need the batch spelled out: an Advanced Arrow
+// craft produces 10, so asking for 1 vs 3 costs identical materials. Without
+// saying so, raising the target quantity looks like it silently did nothing.
+// Ticked steps are visibly de-emphasised (dimmed + strikethrough) but stay in
+// place — the order doesn't change on tick.
 function PlanStep({ index, step, done, onToggle }) {
   const item = items[step.itemId];
   const name = item?.name ?? step.itemId;
-  const showCrafts = step.crafts !== step.qty;
+  const yieldsPerCraft = step.yields ?? 1;
+  const isBatch = yieldsPerCraft > 1;
+  const produced = step.crafts * yieldsPerCraft;
+  const surplus = produced - step.qty;
 
   return (
     <li
@@ -106,10 +112,11 @@ function PlanStep({ index, step, done, onToggle }) {
         >
           Craft {step.qty.toLocaleString()}× {name}
         </span>
-        {showCrafts && (
+        {isBatch && (
           <span className={`text-xs ${done ? 'text-zinc-600' : 'text-zinc-500'}`}>
-            {step.crafts.toLocaleString()} craft{step.crafts === 1 ? '' : 's'} → {step.qty.toLocaleString()}{' '}
-            {name}
+            {step.crafts.toLocaleString()} craft{step.crafts === 1 ? '' : 's'} ×{' '}
+            {yieldsPerCraft.toLocaleString()} per batch = {produced.toLocaleString()} made
+            {surplus > 0 && `, ${surplus.toLocaleString()} spare`}
           </span>
         )}
       </div>
