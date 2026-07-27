@@ -278,8 +278,39 @@ Each phase is a natural commit/stopping point.
 
 ## 8. Future — pal habitats / spawn locations (feasibility done 2026-07-27)
 
-**Verdict: portable, and reliably so — but by snapshotting a build artifact,
-not by calling an API.** Findings from probing https://palworld.gg/map:
+**Verdict: portable, and better than first thought.** The original feasibility
+pass (below) treated palworld.gg as the source and concluded we'd have to
+snapshot a minified build artifact. Deeper recon on 2026-07-27 found that
+**paldb.cc — the datamine we already scrape for items — serves the same data
+from stable, unhashed JSON endpoints, with day/night *and* per-point levels.**
+So paldb.cc is the primary source and palworld.gg is demoted to a cross-check.
+
+### Source hierarchy (implemented)
+
+| Data | Source | Why |
+|---|---|---|
+| POI markers | `https://paldb.cc/js/map_data_en.js` | Stable URL. **13,944 markers / 71 types** — fast travel (137), towers (8), dungeons (170), alpha pals (83), effigies, eggs, ore/coal/sulfur/quartz nodes, fishing spots, NPCs, merchants, bounties, regions. Richer than palworld.gg's set. |
+| Pal habitats | `https://paldb.cc/paldex/<code>.json` | **Day/night separated**, `lv` on each point, plus a spawn `Radius`. Lamball = 351 day + 351 night. |
+| All habitats in bulk | `https://paldb.cc/DataTable/UI/DT_PaldexDistributionData.json` | The raw game DataTable — **365 pals in one 18.7 MB fetch**, but no `lv`. Completeness cross-check only. |
+| Pal name / icon / drops | paldb.cc `/en/Pals` + per-pal pages | "Possible Drops" table gives the item→pal link the crafting app actually needs. |
+| Map tiles | `https://cdn.paldb.cc/image/map8/z{z}x{x}y{y}.webp` | 512px webp, maxNativeZoom 4. |
+| Cross-check | palworld.gg `/_nuxt/*.js` chunk | Independent extraction of the same game data — a real disagreement signal. Ships no data. |
+
+`map_data_en.js` declares 6 vars (`iconLookup`, `extrasIngame`, `extras`,
+`config`, `fixedDungeon`, `regionData`); `fixedDungeon` is the 2.1 MB marker
+array. It is JS, not JSON — slice each `var X =` literal by bracket matching and
+`JSON.parse` it. **Never `eval` it.**
+
+**Coordinate systems agree across both sites**, which is the strongest evidence
+either extraction is right: paldb's `config.landScapeRealPosition{Min,Max}` is
+exactly the `x ∈ [-1099400, 349400], y ∈ [-724400, 724400]` box derived
+independently from palworld.gg's projection maths. paldb additionally gives the
+player-facing in-game coordinate readout (`perPixel = 459` plus the
+`ingame_{x,y}_start` offsets), so we can label points the way the game does.
+
+### Original palworld.gg findings (kept — still true, now the fallback)
+
+Findings from probing https://palworld.gg/map:
 
 - It's a **Nuxt SSR app with no data API**. `/map/_payload.json` returns 69
   bytes (empty), `__NUXT_DATA__` is i18n/site-config only, and
@@ -303,36 +334,33 @@ not by calling an API.** Findings from probing https://palworld.gg/map:
   a 1448800-unit square over x ∈ [-1099400, 349400], y ∈ [-724400, 724400].
   That transform is all we need; we do not need MapLibre.
 - **What .gg does *not* have: day/night.** Its dataset is a single cloud per
-  pal. **paldb.cc has the opposite gap** — its pal pages carry day/night, level
-  ranges, and named zones (`green_A`, "Hillside Cavern") but **no
-  coordinates**. Best dataset = join the two on the pal's internal code
-  (`sheepball` = Lamball, `pinkcat` = Cattiva — both sites use the game codes,
-  but a mapping table is still needed).
-- **Base map:** their tiles are `/images/tiles/{z}/{x}/{y}.png`. Hotlinking
-  breaks our local-assets-only rule and mirroring the pyramid is a lot of
-  someone else's bandwidth for a personal toy — prefer one static map image
-  (or a plain coordinate plane) and draw points over it ourselves.
+  pal — the gap that demoted it to cross-check once paldb's `/paldex/` endpoint
+  turned up with day/night *and* levels.
 - **Legal/politeness:** `robots.txt` is `Disallow:` (empty — nothing
   disallowed) and there is no `/terms` page (404). The underlying facts are
-  Pocketpair's game data; the point clouds are palworld.gg's extraction of it.
-  Attribute palworld.gg in the UI, fetch once per game patch, never at runtime.
+  Pocketpair's game data; the point clouds are each site's extraction of it.
+  Attribute both sources in the UI, fetch once per game patch, never at runtime.
+- **Fragility.** The chunk filename is content-hashed, so it changes on every
+  deploy. Do **not** hardcode it: fetch `/map`, enumerate the `/_nuxt/*.js` it
+  references, and pick the chunk containing the anchor. (paldb.cc needs no such
+  resolver — its URLs are stable, which is the other reason it won.)
 
-**Fragility + the mitigation.** The chunk filename is content-hashed, so it
-changes on every deploy. Do **not** hardcode it: fetch `/map`, enumerate the
-`/_nuxt/*.js` it references, and pick the chunk containing the anchor. That
-resolver is the whole difference between "reliable" and "breaks silently".
+### Pipeline
 
-Planned work, when we do it:
-
-1. `scripts/fetch-habitats.mjs` — resolver + extractor + the world→normalized
-   transform above; writes `src/data/habitats.json` (snapshot + commit, same
-   discipline as `items.json`), with a hard error if the anchor isn't found.
-2. `scripts/fetch-pals.mjs` (paldb.cc, reuses the existing cache/throttle
-   plumbing) — pal id, name, icon, **drops**, day/night + level ranges.
-3. The actual feature: **item → which pals drop it → where they live.** That is
-   the only reason this belongs in a *crafting* app — it closes the loop on
-   "where do I farm this ingredient" for non-crafted materials.
-4. Render as a canvas/SVG overlay on one static map image; heat/points per pal.
+1. `scripts/fetch-map.mjs` → `public/games/palworld/data/map.json` + the tile
+   pyramid. Hard-errors if any of the 6 vars is missing or the marker count
+   collapses — the tripwire for an upstream format change.
+2. `scripts/fetch-pals.mjs` → `src/data/palworld/pals.json` (small, bundled
+   index: name, icon, drops, counts) + one lazy
+   `public/games/palworld/data/habitats/<code>.json` per pal holding flat
+   `[x,y,lv, ...]` integer triples for day and night. Per-pal files so opening
+   the map never downloads every pal's cloud.
+3. `scripts/crosscheck-palworldgg.mjs` → report only, no shipped data.
+4. The feature this all exists for: **item → which pals drop it → where they
+   live**, which closes the "where do I farm this ingredient" loop for
+   non-crafted materials.
+5. UI (next phase): canvas/SVG point overlay on the tile pyramid, day/night
+   toggle, level labels.
 
 Model it as a **generic `sources.json`** (see §9), not a Palworld-shaped table —
 "this item comes from mob X / node Y / biome Z" is exactly the same question in
@@ -407,9 +435,14 @@ Sequence: manifest + renames → decouple components from `data.js` → loader +
   example multi-rarity detail page: https://paldb.cc/en/Assault_Rifle ,
   icon CDN: `https://cdn.paldb.cc/image/Others/InventoryItemIcon/Texture/`
 - palworld.gg items (cross-check source): https://palworld.gg/items
-- palworld.gg interactive map (habitat/spawn source, §8):
+- **paldb.cc map + habitat endpoints (primary, §8)** — all stable URLs:
+  markers `https://paldb.cc/js/map_data_en.js` ,
+  per-pal day/night spawns `https://paldb.cc/paldex/<code>.json` ,
+  bulk game DataTable `https://paldb.cc/DataTable/UI/DT_PaldexDistributionData.json` ,
+  map page `https://paldb.cc/en/Palpagos_Islands` ,
+  tiles `https://cdn.paldb.cc/image/map8/z{z}x{x}y{y}.webp` ,
+  pal detail page `https://paldb.cc/en/Lamball`
+- palworld.gg interactive map (cross-check only, §8):
   https://palworld.gg/map — data lives in a hashed `/_nuxt/*.js` chunk, tiles at
   `/images/tiles/{z}/{x}/{y}.png`
-- paldb.cc pal pages (day/night + level ranges + named zones, §8):
-  https://paldb.cc/en/Lamball
 - Community recipe JSON precedent: https://github.com/danaildichev/PalWorldResourceCalculator/
