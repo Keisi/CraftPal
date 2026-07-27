@@ -68,6 +68,25 @@ const MIN_INTERVAL_MS = 500
 const FALLBACK_GAME_VERSION = '0.6.x'
 const VALID_PHASES = new Set(['index', 'detail', 'habitat', 'icon'])
 
+// Tripwires — same rationale + style as fetch-map.mjs's MIN_MARKERS_TRIPWIRE:
+// a scraper that silently returns less is worse than one that dies (PLAN.md).
+// If paldb.cc changes /en/Pals' markup, the cheerio selectors in
+// discoverPals() would match few/no cards and this script would otherwise
+// happily write a near-empty pals.json while reporting "success" — the exact
+// failure mode fetch-map.mjs already guards against for map markers.
+//
+// MIN_PAL_ROSTER_TRIPWIRE is checked unconditionally right after discovery:
+// /en/Pals is a single page, fetched or served from cache in full regardless
+// of --limit/--only, so a short roster here is never a legitimate partial
+// run — it can only mean the page didn't parse as expected.
+const MIN_PAL_ROSTER_TRIPWIRE = 200 // real roster on 2026-07-27 is 299 pals
+
+// MIN_HABITATS_TRIPWIRE is only asserted when this run actually had a chance
+// to observe habitat availability across the WHOLE roster (see
+// habitatFloorApplies in main()) — otherwise a --limit'd or --only-restricted
+// incremental invocation would false-fire constantly during development.
+const MIN_HABITATS_TRIPWIRE = 200 // real count on 2026-07-27 is 278/299 (21 are genuine upstream 404s for unique/boss pals)
+
 // ---------------------------------------------------------------------------
 // CLI args
 // ---------------------------------------------------------------------------
@@ -402,6 +421,13 @@ async function main() {
   const codes = [...pals.keys()].sort((a, b) => a.localeCompare(b))
   log(`fetch-pals: discovered ${codes.length} pals, gameVersion=${gameVersion}`)
 
+  if (codes.length < MIN_PAL_ROSTER_TRIPWIRE) {
+    throw new Error(
+      `HARD ERROR: /en/Pals parsed to only ${codes.length} pals, expected at least ${MIN_PAL_ROSTER_TRIPWIRE} — ` +
+        'upstream format likely changed.',
+    )
+  }
+
   // --- Phase: detail pages (drops) -----------------------------------------
   const detailByCode = new Map()
   const newFetchCountBeforeDetail = newFetchCount
@@ -436,6 +462,21 @@ async function main() {
   }
   const habitatNewlyFetched = newFetchCount - newFetchCountBeforeHabitat
   log(`fetch-pals: ${habitatByCode.size}/${codes.length} habitats available (${habitatNewlyFetched} newly fetched)`)
+
+  // The habitat floor only applies when this run had a genuine opportunity to
+  // observe habitat availability across the whole roster: the habitat phase
+  // must be enabled this run (not excluded via --only), and --limit must not
+  // have cut the habitat loop above short (limitReached, snapshotted right
+  // here — before the icon phase can raise it for unrelated reasons). Either
+  // condition means this was a deliberate partial/incremental invocation, not
+  // a signal that paldb.cc's habitat endpoint shape changed.
+  const habitatFloorApplies = phaseAllowed('habitat') && !limitReached
+  if (habitatFloorApplies && habitatByCode.size < MIN_HABITATS_TRIPWIRE) {
+    throw new Error(
+      `HARD ERROR: only ${habitatByCode.size}/${codes.length} pals resolved habitat data, expected at least ` +
+        `${MIN_HABITATS_TRIPWIRE} — upstream format likely changed.`,
+    )
+  }
 
   // --- Phase: icons -----------------------------------------------------------
   let iconsPresent = 0
