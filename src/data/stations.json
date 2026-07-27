@@ -1,14 +1,167 @@
 {
-  "weapon_assembly_line": { "name": "Weapon Assembly Line", "icon": "icons/station_weapon_assembly_line.webp", "techLevel": 32 },
-  "weapon_assembly_line_2": { "name": "Weapon Assembly Line II", "icon": "icons/station_weapon_assembly_line_2.webp", "techLevel": 47 },
-  "advanced_weapon_assembly_line": { "name": "Advanced Weapon Assembly Line", "icon": "icons/station_advanced_weapon_assembly_line.webp", "techLevel": 63 },
-  "ancient_workbench": { "name": "Ancient Workbench", "icon": "icons/station_ancient_workbench.webp", "techLevel": 67 },
-  "improved_furnace": { "name": "Improved Furnace", "icon": "icons/station_improved_furnace.webp", "techLevel": 34 },
-  "electric_furnace": { "name": "Electric Furnace", "icon": "icons/station_electric_furnace.webp", "techLevel": 44 },
-  "gigantic_furnace": { "name": "Gigantic Furnace", "icon": "icons/station_gigantic_furnace.webp", "techLevel": 58 },
-  "ancient_furnace": { "name": "Ancient Furnace", "icon": "icons/station_ancient_furnace.webp", "techLevel": 66 },
-  "primitive_furnace": { "name": "Primitive Furnace", "icon": "icons/station_primitive_furnace.webp", "techLevel": 10 },
-  "production_assembly_line": { "name": "Production Assembly Line", "icon": "icons/station_production_assembly_line.webp", "techLevel": 29 },
-  "production_assembly_line_2": { "name": "Production Assembly Line II", "icon": "icons/station_production_assembly_line_2.webp", "techLevel": 42 },
-  "advanced_workshop": { "name": "Advanced Workshop", "icon": "icons/station_advanced_workshop.webp", "techLevel": 62 }
+  "advanced_medicine_workbench": {
+    "name": "Advanced Medicine Workbench",
+    "icon": "icons/station_advanced_medicine_workbench.webp",
+    "techLevel": 61
+  },
+  "advanced_sphere_assembly_line": {
+    "name": "Advanced Sphere Assembly Line",
+    "icon": "icons/station_advanced_sphere_assembly_line.webp",
+    "techLevel": 58
+  },
+  "advanced_weapon_assembly_line": {
+    "name": "Advanced Weapon Assembly Line",
+    "icon": "icons/station_advanced_weapon_assembly_line.webp",
+    "techLevel": 63
+  },
+  "advanced_workshop": {
+    "name": "Advanced Workshop",
+    "icon": "icons/station_advanced_workshop.webp",
+    "techLevel": 62
+  },
+  "ancient_furnace": {
+    "name": "Ancient Furnace",
+    "icon": "icons/station_ancient_furnace.webp",
+    "techLevel": 66
+  },
+  "ancient_kitchen": {
+    "name": "Ancient Kitchen",
+    "icon": "icons/station_ancient_kitchen.webp",
+    "techLevel": 70
+  },
+  "ancient_workbench": {
+    "name": "Ancient Workbench",
+    "icon": "icons/station_ancient_workbench.webp",
+    "techLevel": 67
+  },
+  "campfire": {
+    "name": "Campfire",
+    "icon": "icons/station_campfire.webp",
+    "techLevel": 2
+  },
+  "cooking_pot": {
+    "name": "Cooking Pot",
+    "icon": "icons/station_cooking_pot.webp",
+    "techLevel": 17
+  },
+  "crusher": {
+    "name": "Crusher",
+    "icon": "icons/station_crusher.webp",
+    "techLevel": 8
+  },
+  "drafting_table": {
+    "name": "Drafting Table",
+    "icon": "icons/station_drafting_table.webp",
+    "techLevel": 45
+  },
+  "electric_furnace": {
+    "name": "Electric Furnace",
+    "icon": "icons/station_electric_furnace.webp",
+    "techLevel": 44
+  },
+  "electric_kitchen": {
+    "name": "Electric Kitchen",
+    "icon": "icons/station_electric_kitchen.webp",
+    "techLevel": 41
+  },
+  "electric_medicine_workbench": {
+    "name": "Electric Medicine Workbench",
+    "icon": "icons/station_electric_medicine_workbench.webp",
+    "techLevel": 43
+  },
+  "gigantic_furnace": {
+    "name": "Gigantic Furnace",
+    "icon": "icons/station_gigantic_furnace.webp",
+    "techLevel": 58
+  },
+  "gold_coin_assembly_line": {
+    "name": "Gold Coin Assembly Line",
+    "icon": "icons/station_gold_coin_assembly_line.webp",
+    "techLevel": 73
+  },
+  "high_quality_workbench": {
+    "name": "High Quality Workbench",
+    "icon": "icons/station_high_quality_workbench.webp",
+    "techLevel": 11
+  },
+  "improved_furnace": {
+    "name": "Improved Furnace",
+    "icon": "icons/station_improved_furnace.webp",
+    "techLevel": 34
+  },
+  "large_scale_stone_oven": {
+    "name": "Large-Scale Stone Oven",
+    "icon": "icons/station_large_scale_stone_oven.webp",
+    "techLevel": 49
+  },
+  "medieval_medicine_workbench": {
+    "name": "Medieval Medicine Workbench",
+    "icon": "icons/station_medieval_medicine_workbench.webp",
+    "techLevel": 12
+  },
+  "mill": {
+    "name": "Mill",
+    "icon": "icons/station_mill.webp",
+    "techLevel": 15
+  },
+  "pal_gear_workbench": {
+    "name": "Pal Gear Workbench",
+    "icon": "icons/station_pal_gear_workbench.webp",
+    "techLevel": 6
+  },
+  "primitive_furnace": {
+    "name": "Primitive Furnace",
+    "icon": "icons/station_primitive_furnace.webp",
+    "techLevel": 10
+  },
+  "primitive_workbench": {
+    "name": "Primitive Workbench",
+    "icon": "icons/station_primitive_workbench.webp",
+    "techLevel": 1
+  },
+  "production_assembly_line": {
+    "name": "Production Assembly Line",
+    "icon": "icons/station_production_assembly_line.webp",
+    "techLevel": 29
+  },
+  "production_assembly_line_2": {
+    "name": "Production Assembly Line II",
+    "icon": "icons/station_production_assembly_line_2.webp",
+    "techLevel": 42
+  },
+  "refrigerated_crusher": {
+    "name": "Refrigerated Crusher",
+    "icon": "icons/station_refrigerated_crusher.webp",
+    "techLevel": 54
+  },
+  "sphere_assembly_line": {
+    "name": "Sphere Assembly Line",
+    "icon": "icons/station_sphere_assembly_line.webp",
+    "techLevel": 27
+  },
+  "sphere_assembly_line_2": {
+    "name": "Sphere Assembly Line II",
+    "icon": "icons/station_sphere_assembly_line_2.webp",
+    "techLevel": 35
+  },
+  "sphere_workbench": {
+    "name": "Sphere Workbench",
+    "icon": "icons/station_sphere_workbench.webp",
+    "techLevel": 14
+  },
+  "weapon_assembly_line": {
+    "name": "Weapon Assembly Line",
+    "icon": "icons/station_weapon_assembly_line.webp",
+    "techLevel": 32
+  },
+  "weapon_assembly_line_2": {
+    "name": "Weapon Assembly Line II",
+    "icon": "icons/station_weapon_assembly_line_2.webp",
+    "techLevel": 47
+  },
+  "weapon_workbench": {
+    "name": "Weapon Workbench",
+    "icon": "icons/station_weapon_workbench.webp",
+    "techLevel": 20
+  }
 }
