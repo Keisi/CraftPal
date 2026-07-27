@@ -18,6 +18,7 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
   const rarity = item?.rarity ?? 'common';
+  const yieldsPerCraft = item?.recipe?.yields ?? 1;
 
   return (
     <li>
@@ -64,6 +65,14 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
         >
           {name}
         </span>
+
+        {/* Batch recipes: state what one craft actually produces. */}
+        {yieldsPerCraft > 1 && (
+          <span className="shrink-0 text-[11px] text-zinc-500">
+            {node.crafts.toLocaleString()} craft{node.crafts === 1 ? '' : 's'} ×{' '}
+            {yieldsPerCraft.toLocaleString()}
+          </span>
+        )}
 
         {node.stations !== null && <StationChip stationIds={node.stations} compact />}
 

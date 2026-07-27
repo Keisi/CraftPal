@@ -8,26 +8,39 @@ import { RawMaterialsStrip } from './RawSummary.jsx';
 function TargetRow({ task, onQtyChange, onRemove }) {
   const item = items[task.itemId];
   const name = item?.name ?? task.itemId;
+  // A batch recipe can only be run whole (a craft of ammo yields 50; the game
+  // won't make you one round), so these targets are counted in CRAFTS, not
+  // pieces — otherwise raising 1 → 10 pieces changes no materials and reads
+  // as a broken calculation.
+  const yieldsPerCraft = item?.recipe?.yields ?? 1;
+  const isBatch = yieldsPerCraft > 1;
 
   return (
     <li className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 shadow-sm">
       <ItemIcon src={item?.icon} alt={name} className="h-10 w-10" />
 
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
         <span className="truncate font-medium text-zinc-100">{name}</span>
         <RarityBadge rarity={item?.rarity} />
+        {isBatch && (
+          <span className="text-xs text-zinc-500">
+            {yieldsPerCraft.toLocaleString()} per craft = {task.qty.toLocaleString()} total
+          </span>
+        )}
       </div>
 
       <label className="flex items-center gap-1.5 text-xs text-zinc-400">
-        Qty
+        {isBatch ? 'Crafts' : 'Qty'}
         <input
           type="number"
           min={1}
           step={1}
-          value={task.qty}
+          value={isBatch ? Math.ceil(task.qty / yieldsPerCraft) : task.qty}
           onChange={(event) => {
-            const next = Math.floor(Number(event.target.value));
-            onQtyChange(task.itemId, Number.isFinite(next) && next >= 1 ? next : 1);
+            const typed = Math.floor(Number(event.target.value));
+            const safe = Number.isFinite(typed) && typed >= 1 ? typed : 1;
+            // Batch items are counted in crafts, so store crafts × yield.
+            onQtyChange(task.itemId, isBatch ? safe * yieldsPerCraft : safe);
           }}
           className="w-16 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
         />

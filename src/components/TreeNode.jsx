@@ -1,7 +1,7 @@
 import { items } from '../lib/data.js';
 import { childPath } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
-import { StationBadge } from './StationChip.jsx';
+import { StationChip } from './StationChip.jsx';
 import { rarityBorderClass } from '../lib/rarity.js';
 
 // Per-node collapse (Phase 4, PLAN.md §5): clicking a node card that has
@@ -14,56 +14,68 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
   const name = item?.name ?? node.itemId;
   const rarity = item?.rarity ?? 'common';
   const isCrafted = node.stations !== null;
+  const yieldsPerCraft = item?.recipe?.yields ?? 1;
 
   return (
-    <div
-      role={hasChildren ? 'button' : undefined}
-      tabIndex={hasChildren ? 0 : undefined}
-      onClick={hasChildren ? onToggle : undefined}
-      onKeyDown={
-        hasChildren
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onToggle();
+    <div className="flex flex-col items-center gap-1.5">
+      <div
+        role={hasChildren ? 'button' : undefined}
+        tabIndex={hasChildren ? 0 : undefined}
+        onClick={hasChildren ? onToggle : undefined}
+        onKeyDown={
+          hasChildren
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onToggle();
+                }
               }
-            }
-          : undefined
-      }
-      title={hasChildren ? (collapsed ? 'Expand ingredients' : 'Collapse ingredients') : undefined}
-      className={`relative flex w-24 flex-col items-center gap-1 rounded-md border bg-zinc-900 px-1.5 pb-1.5 pt-2 shadow-sm ${rarityBorderClass(rarity)} ${
-        hasChildren
-          ? 'cursor-pointer hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
-          : ''
-      }`}
-    >
-      {hasChildren && (
-        <span
-          aria-hidden="true"
-          className="absolute right-1 top-0.5 text-[10px] leading-none text-zinc-400"
-        >
-          {collapsed ? '▸' : '▾'}
-        </span>
-      )}
+            : undefined
+        }
+        title={hasChildren ? (collapsed ? 'Expand ingredients' : 'Collapse ingredients') : undefined}
+        className={`relative flex w-36 flex-col items-center gap-2 rounded-lg border-2 bg-zinc-900 p-3 shadow-sm ${rarityBorderClass(rarity)} ${
+          hasChildren
+            ? 'cursor-pointer hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500'
+            : ''
+        }`}
+      >
+        {hasChildren && (
+          <span
+            aria-hidden="true"
+            className="absolute right-1.5 top-1.5 text-xs leading-none text-zinc-400"
+          >
+            {collapsed ? '▸' : '▾'}
+          </span>
+        )}
 
-      {/* Station as a corner badge rather than a chip below the card: the
-          chip added a whole extra row of height to every crafted node. */}
-      {isCrafted && <StationBadge stationIds={node.stations} />}
+        <div className="relative">
+          <ItemIcon src={item?.icon} alt={name} className="h-14 w-14" />
+          <span className="absolute -bottom-1.5 -right-1.5 rounded-full border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-zinc-100">
+            ×{node.qty.toLocaleString()}
+          </span>
+        </div>
 
-      <div className="relative">
-        <ItemIcon src={item?.icon} alt={name} className="h-10 w-10" />
-        <span className="absolute -bottom-1 -right-1.5 rounded-full border border-zinc-700 bg-zinc-950 px-1 py-px text-[9px] font-semibold leading-none text-zinc-100">
-          ×{node.qty.toLocaleString()}
+        <span className="line-clamp-2 text-center text-xs font-medium leading-snug text-zinc-100">
+          {name}
         </span>
+
+        {/* Batch recipes: state what one craft actually produces, so a node
+            asking for 50 ammo reads as one craft rather than fifty. */}
+        {yieldsPerCraft > 1 && (
+          <span className="text-center text-[10px] leading-tight text-zinc-500">
+            {node.crafts.toLocaleString()} craft{node.crafts === 1 ? '' : 's'} ×{' '}
+            {yieldsPerCraft.toLocaleString()}
+          </span>
+        )}
+
+        {hasChildren && collapsed && (
+          <span className="text-[10px] text-zinc-500">
+            +{node.children.length} ingredient{node.children.length === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
 
-      <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-zinc-100">
-        {name}
-      </span>
-
-      {hasChildren && collapsed && (
-        <span className="text-[9px] leading-none text-zinc-500">+{node.children.length}</span>
-      )}
+      {isCrafted && <StationChip stationIds={node.stations} />}
     </div>
   );
 }

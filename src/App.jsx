@@ -15,12 +15,39 @@ const VIEWS = [
   { id: 'compact', label: 'Compact' },
 ]
 
+// Diagram zoom: a wide recipe outgrows any viewport, so let it be scaled
+// down rather than shrinking the cards for everyone.
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 1.5
+const ZOOM_STEP = 0.1
+const clampZoom = (value) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 10) / 10))
+
+// Browse filters live here, not inside ItemBrowser: selecting an item
+// unmounts the browser, and the filters must survive the round trip back.
+const DEFAULT_BROWSE_FILTERS = {
+  search: '',
+  category: null,
+  rarity: null,
+  craftableOnly: false,
+  station: '',
+  sortKey: 'name',
+}
+
 // Crafting-tasks persistence (localStorage). Every read is sanitized rather
 // than trusted — a hand-edited or stale-schema value must never white-screen
 // the app, so anything that doesn't look like a valid task/progress entry is
 // silently dropped instead of thrown.
 const TASKS_KEY = 'craftpal.tasks'
 const PROGRESS_KEY = 'craftpal.taskProgress'
+
+// A batch recipe can only be run whole — the game has no way to craft a
+// single round of ammo when a craft yields 50 — so a target quantity is
+// always rounded up to a whole number of crafts.
+function wholeBatches(itemId, qty) {
+  const yieldsPerCraft = items[itemId]?.recipe?.yields ?? 1
+  if (yieldsPerCraft <= 1) return qty
+  return Math.ceil(qty / yieldsPerCraft) * yieldsPerCraft
+}
 
 function sanitizeTasks(value) {
   if (!Array.isArray(value)) return []
@@ -63,13 +90,14 @@ function TasksNavButton({ count, onClick }) {
   )
 }
 
-function ToolbarButton({ children, onClick, active = false, title }) {
+function ToolbarButton({ children, onClick, active = false, title, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
-      className={`rounded-md border px-2.5 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500 ${
+      disabled={disabled}
+      className={`rounded-md border px-2.5 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 ${
         active
           ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
           : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
@@ -91,6 +119,9 @@ function TreeHeader({
   onViewChange,
   onCollapseAll,
   onExpandAll,
+  zoom,
+  onZoomBy,
+  onZoomReset,
   taskCount,
   onAddToTasks,
   onShowTasks,
@@ -139,6 +170,33 @@ function TreeHeader({
           </ToolbarButton>
         </div>
 
+        {view === 'diagram' && (
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => onZoomBy(-ZOOM_STEP)}
+              title="Zoom out"
+              disabled={zoom <= ZOOM_MIN}
+            >
+              −
+            </ToolbarButton>
+            <button
+              type="button"
+              onClick={onZoomReset}
+              title="Reset zoom to 100%"
+              className="w-14 rounded-md border border-zinc-700 px-1 py-1 text-center text-xs tabular-nums text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <ToolbarButton
+              onClick={() => onZoomBy(ZOOM_STEP)}
+              title="Zoom in"
+              disabled={zoom >= ZOOM_MAX}
+            >
+              +
+            </ToolbarButton>
+          </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-zinc-400">
           Qty
           <input
@@ -173,6 +231,8 @@ function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [qty, setQty] = useState(1)
   const [view, setView] = useState('diagram')
+  const [zoom, setZoom] = useState(1)
+  const [browseFilters, setBrowseFilters] = useState(DEFAULT_BROWSE_FILTERS)
   // Collapse state lives here, keyed by node path, so it survives a view
   // switch and can be driven wholesale by collapse/expand-all.
   const [collapsed, setCollapsed] = useState(() => new Set())
@@ -200,16 +260,20 @@ function App() {
     const amount = Number.isFinite(addQty) && addQty >= 1 ? Math.floor(addQty) : 1
     setTasks((current) => {
       const index = current.findIndex((task) => task.itemId === itemId)
-      if (index === -1) return [...current, { itemId, qty: amount }]
+      if (index === -1) return [...current, { itemId, qty: wholeBatches(itemId, amount) }]
       const next = [...current]
-      next[index] = { ...next[index], qty: next[index].qty + amount }
+      next[index] = { ...next[index], qty: wholeBatches(itemId, next[index].qty + amount) }
       return next
     })
   }, [])
 
   const updateTaskQty = useCallback((itemId, newQty) => {
     const amount = Number.isFinite(newQty) && newQty >= 1 ? Math.floor(newQty) : 1
-    setTasks((current) => current.map((task) => (task.itemId === itemId ? { ...task, qty: amount } : task)))
+    setTasks((current) =>
+      current.map((task) =>
+        task.itemId === itemId ? { ...task, qty: wholeBatches(itemId, amount) } : task,
+      ),
+    )
   }, [])
 
   const removeTask = useCallback((itemId) => {
@@ -286,6 +350,9 @@ function App() {
           onSelectVariant={handleSelectVariant}
           view={view}
           onViewChange={setView}
+          zoom={zoom}
+          onZoomBy={(delta) => setZoom((current) => clampZoom(current + delta))}
+          onZoomReset={() => setZoom(1)}
           onCollapseAll={() => setCollapsed(new Set(collapsiblePaths(tree)))}
           onExpandAll={() => setCollapsed(new Set())}
           taskCount={tasks.length}
@@ -294,7 +361,7 @@ function App() {
         />
 
         <main className="flex-1 px-6 py-6">
-          <CraftTree tree={tree} view={view} collapsed={collapsed} onToggle={toggleCollapsed} />
+          <CraftTree tree={tree} view={view} zoom={zoom} collapsed={collapsed} onToggle={toggleCollapsed} />
         </main>
 
         <RawSummary tree={tree} />
@@ -320,6 +387,8 @@ function App() {
         stations={stations}
         onSelect={handleSelect}
         onAddTask={(id) => addTask(id, 1)}
+        filters={browseFilters}
+        onFiltersChange={setBrowseFilters}
       />
     </div>
   )

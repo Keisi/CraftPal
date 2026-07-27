@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ItemIcon } from './ItemIcon.jsx';
 import { rarityBadgeClass, rarityDotClass } from '../lib/rarity.js';
 import {
@@ -18,10 +18,14 @@ export function RarityBadge({ rarity }) {
   );
 }
 
+// Category ids are snake_case ('special_weapon'); show them as words. Kept
+// unexported so this file only exports components (fast-refresh safe).
+const humanizeCategory = (category) => String(category ?? '').replace(/_/g, ' ');
+
 export function CategoryBadge({ category }) {
   return (
     <span className="rounded-full border border-zinc-600/60 bg-zinc-700/40 px-2 py-0.5 text-xs font-medium capitalize text-zinc-300">
-      {category}
+      {humanizeCategory(category)}
     </span>
   );
 }
@@ -137,13 +141,12 @@ function RarityChip({ rarity, active, onClick }) {
 // hardcoded — so this works identically against the 16-item sample and the
 // eventual ~600+-item scrape. Family variants (PLAN.md §1) collapse to one
 // card with rarity dots.
-export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState(null);
-  const [rarity, setRarity] = useState(null);
-  const [craftableOnly, setCraftableOnly] = useState(false);
-  const [station, setStation] = useState('');
-  const [sortKey, setSortKey] = useState('name');
+// Filter/sort state is owned by App (see DEFAULT_BROWSE_FILTERS) rather than
+// held locally: opening an item unmounts the browser, and losing the filters
+// on every back-navigation made browsing a 1600-card grid painful.
+export function ItemBrowser({ items, stations, onSelect, onAddTask, filters, onFiltersChange }) {
+  const { search, category, rarity, craftableOnly, station, sortKey } = filters;
+  const setField = (key, value) => onFiltersChange({ ...filters, [key]: value });
 
   const categories = useMemo(() => deriveCategories(items), [items]);
   const rarities = useMemo(() => deriveRarities(items), [items]);
@@ -162,11 +165,11 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
   }, [filtered, sortKey]);
 
   function toggleCategory(value) {
-    setCategory((current) => (current === value ? null : value));
+    setField('category', category === value ? null : value);
   }
 
   function toggleRarity(value) {
-    setRarity((current) => (current === value ? null : value));
+    setField('rarity', rarity === value ? null : value);
   }
 
   return (
@@ -176,7 +179,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
           <input
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => setField('search', event.target.value)}
             placeholder="Search items…"
             aria-label="Search items"
             className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
@@ -186,7 +189,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
             <input
               type="checkbox"
               checked={craftableOnly}
-              onChange={(event) => setCraftableOnly(event.target.checked)}
+              onChange={(event) => setField('craftableOnly', event.target.checked)}
               className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-zinc-100 focus:ring-2 focus:ring-zinc-500"
             />
             Craftable only
@@ -196,7 +199,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
             Station
             <select
               value={station}
-              onChange={(event) => setStation(event.target.value)}
+              onChange={(event) => setField('station', event.target.value)}
               className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
             >
               <option value="">Any station</option>
@@ -212,7 +215,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
             Sort
             <select
               value={sortKey}
-              onChange={(event) => setSortKey(event.target.value)}
+              onChange={(event) => setField('sortKey', event.target.value)}
               className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
             >
               {Object.entries(SORTS).map(([key, { label }]) => (
@@ -231,7 +234,7 @@ export function ItemBrowser({ items, stations, onSelect, onAddTask }) {
             </span>
             {categories.map((c) => (
               <Chip key={c} active={category === c} onClick={() => toggleCategory(c)}>
-                {c}
+                {humanizeCategory(c)}
               </Chip>
             ))}
           </div>
