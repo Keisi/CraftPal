@@ -149,7 +149,14 @@
         "ingredients": [
           {
             "item": "acacia_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_log",
+              "acacia_wood",
+              "stripped_acacia_log",
+              "stripped_acacia_wood"
+            ],
+            "anyOfLabel": "Acacia Log"
           }
         ]
       },
@@ -728,7 +735,12 @@
         "ingredients": [
           {
             "item": "bamboo_block",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "bamboo_block",
+              "stripped_bamboo_block"
+            ],
+            "anyOfLabel": "Bamboo Blocks"
           }
         ]
       },
@@ -861,11 +873,43 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 6
+            "qty": 6,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "acacia_slab",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_slab",
+              "bamboo_slab",
+              "birch_slab",
+              "cherry_slab",
+              "crimson_slab",
+              "dark_oak_slab",
+              "jungle_slab",
+              "mangrove_slab",
+              "oak_slab",
+              "pale_oak_slab",
+              "poplar_slab",
+              "spruce_slab",
+              "warped_slab"
+            ],
+            "anyOfLabel": "Wooden Slab"
           }
         ]
       },
@@ -933,7 +977,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 6
+            "qty": 6,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "honeycomb",
@@ -1126,7 +1186,14 @@
         "ingredients": [
           {
             "item": "birch_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "birch_log",
+              "birch_wood",
+              "stripped_birch_log",
+              "stripped_birch_wood"
+            ],
+            "anyOfLabel": "Birch Log"
           }
         ]
       },
@@ -1286,7 +1353,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -1302,7 +1385,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "black_dye",
@@ -1460,7 +1563,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "black_dye",
@@ -1547,7 +1670,24 @@
           },
           {
             "item": "blue_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -1719,7 +1859,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -1735,7 +1891,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "blue_dye",
@@ -1918,7 +2094,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "blue_dye",
@@ -2005,7 +2201,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -2065,7 +2278,11 @@
           },
           {
             "item": "copper_block",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "copper_block",
+              "waxed_copper_block"
+            ]
           }
         ]
       },
@@ -2139,7 +2356,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 6
+            "qty": 6,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "book",
@@ -2200,7 +2433,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -2260,7 +2509,13 @@
           },
           {
             "item": "blackstone",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Crafting Materials"
           }
         ]
       },
@@ -2377,7 +2632,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -2393,7 +2664,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "brown_dye",
@@ -2563,7 +2854,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "brown_dye",
@@ -2650,7 +2961,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -2800,7 +3128,13 @@
           },
           {
             "item": "blue_egg",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "blue_egg",
+              "brown_egg",
+              "egg"
+            ],
+            "anyOfLabel": "Egg"
           },
           {
             "item": "wheat",
@@ -2857,11 +3191,67 @@
           },
           {
             "item": "charcoal",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "charcoal",
+              "coal"
+            ],
+            "anyOfLabel": "Coals"
           },
           {
             "item": "acacia_log",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_log",
+              "acacia_wood",
+              "birch_log",
+              "birch_wood",
+              "cherry_log",
+              "cherry_wood",
+              "crimson_hyphae",
+              "crimson_stem",
+              "dark_oak_log",
+              "dark_oak_wood",
+              "jungle_log",
+              "jungle_wood",
+              "mangrove_log",
+              "mangrove_wood",
+              "oak_log",
+              "oak_wood",
+              "pale_oak_log",
+              "pale_oak_wood",
+              "poplar_log",
+              "poplar_wood",
+              "spruce_log",
+              "spruce_wood",
+              "stripped_acacia_log",
+              "stripped_acacia_wood",
+              "stripped_birch_log",
+              "stripped_birch_wood",
+              "stripped_cherry_log",
+              "stripped_cherry_wood",
+              "stripped_crimson_hyphae",
+              "stripped_crimson_stem",
+              "stripped_dark_oak_log",
+              "stripped_dark_oak_wood",
+              "stripped_jungle_log",
+              "stripped_jungle_wood",
+              "stripped_mangrove_log",
+              "stripped_mangrove_wood",
+              "stripped_oak_log",
+              "stripped_oak_wood",
+              "stripped_pale_oak_log",
+              "stripped_pale_oak_wood",
+              "stripped_poplar_log",
+              "stripped_poplar_wood",
+              "stripped_spruce_log",
+              "stripped_spruce_wood",
+              "stripped_warped_hyphae",
+              "stripped_warped_stem",
+              "warped_hyphae",
+              "warped_stem"
+            ],
+            "anyOfLabel": "Log"
           }
         ]
       },
@@ -2925,7 +3315,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -2989,7 +3395,50 @@
         "ingredients": [
           {
             "item": "acacia_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_log",
+              "acacia_wood",
+              "birch_log",
+              "birch_wood",
+              "cherry_log",
+              "cherry_wood",
+              "dark_oak_log",
+              "dark_oak_wood",
+              "jungle_log",
+              "jungle_wood",
+              "mangrove_log",
+              "mangrove_wood",
+              "oak_log",
+              "oak_wood",
+              "pale_oak_log",
+              "pale_oak_wood",
+              "poplar_log",
+              "poplar_wood",
+              "spruce_log",
+              "spruce_wood",
+              "stripped_acacia_log",
+              "stripped_acacia_wood",
+              "stripped_birch_log",
+              "stripped_birch_wood",
+              "stripped_cherry_log",
+              "stripped_cherry_wood",
+              "stripped_dark_oak_log",
+              "stripped_dark_oak_wood",
+              "stripped_jungle_log",
+              "stripped_jungle_wood",
+              "stripped_mangrove_log",
+              "stripped_mangrove_wood",
+              "stripped_oak_log",
+              "stripped_oak_wood",
+              "stripped_pale_oak_log",
+              "stripped_pale_oak_wood",
+              "stripped_poplar_log",
+              "stripped_poplar_wood",
+              "stripped_spruce_log",
+              "stripped_spruce_wood"
+            ],
+            "anyOfLabel": "Logs That Burn"
           }
         ]
       },
@@ -3142,7 +3591,14 @@
         "ingredients": [
           {
             "item": "cherry_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "cherry_log",
+              "cherry_wood",
+              "stripped_cherry_log",
+              "stripped_cherry_wood"
+            ],
+            "anyOfLabel": "Cherry Log"
           }
         ]
       },
@@ -3279,7 +3735,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 8
+            "qty": 8,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -3327,11 +3799,43 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 6
+            "qty": 6,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "acacia_slab",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_slab",
+              "bamboo_slab",
+              "birch_slab",
+              "cherry_slab",
+              "crimson_slab",
+              "dark_oak_slab",
+              "jungle_slab",
+              "mangrove_slab",
+              "oak_slab",
+              "pale_oak_slab",
+              "poplar_slab",
+              "spruce_slab",
+              "warped_slab"
+            ],
+            "anyOfLabel": "Wooden Slab"
           }
         ]
       },
@@ -4006,7 +4510,23 @@
         "ingredients": [
           {
             "item": "acacia_slab",
-            "qty": 7
+            "qty": 7,
+            "anyOf": [
+              "acacia_slab",
+              "bamboo_slab",
+              "birch_slab",
+              "cherry_slab",
+              "crimson_slab",
+              "dark_oak_slab",
+              "jungle_slab",
+              "mangrove_slab",
+              "oak_slab",
+              "pale_oak_slab",
+              "poplar_slab",
+              "spruce_slab",
+              "warped_slab"
+            ],
+            "anyOfLabel": "Wooden Slab"
           }
         ]
       },
@@ -4580,7 +5100,11 @@
           },
           {
             "item": "charcoal",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "charcoal",
+              "coal"
+            ]
           },
           {
             "item": "stick",
@@ -4739,7 +5263,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -4923,7 +5463,14 @@
         "ingredients": [
           {
             "item": "crimson_hyphae",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "crimson_hyphae",
+              "crimson_stem",
+              "stripped_crimson_hyphae",
+              "stripped_crimson_stem"
+            ],
+            "anyOfLabel": "Crimson Stems"
           }
         ]
       },
@@ -5211,7 +5758,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -5227,7 +5790,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "cyan_dye",
@@ -5385,7 +5968,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "cyan_dye",
@@ -5472,7 +6075,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -5669,7 +6289,14 @@
         "ingredients": [
           {
             "item": "dark_oak_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "dark_oak_log",
+              "dark_oak_wood",
+              "stripped_dark_oak_log",
+              "stripped_dark_oak_wood"
+            ],
+            "anyOfLabel": "Dark Oak Log"
           }
         ]
       },
@@ -5866,7 +6493,23 @@
           },
           {
             "item": "acacia_slab",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_slab",
+              "bamboo_slab",
+              "birch_slab",
+              "cherry_slab",
+              "crimson_slab",
+              "dark_oak_slab",
+              "jungle_slab",
+              "mangrove_slab",
+              "oak_slab",
+              "pale_oak_slab",
+              "poplar_slab",
+              "spruce_slab",
+              "warped_slab"
+            ],
+            "anyOfLabel": "Wooden Slab"
           }
         ]
       },
@@ -7156,7 +7799,11 @@
           },
           {
             "item": "charcoal",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "charcoal",
+              "coal"
+            ]
           }
         ]
       },
@@ -7237,7 +7884,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -7370,7 +8033,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 8
+            "qty": 8,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Crafting Materials"
           }
         ]
       },
@@ -7419,7 +8088,12 @@
         "ingredients": [
           {
             "item": "red_sand",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "red_sand",
+              "sand"
+            ],
+            "anyOfLabel": "Smelts To Glass"
           }
         ]
       },
@@ -7970,7 +8644,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -7986,7 +8677,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "gray_dye",
@@ -8030,7 +8741,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -8078,7 +8806,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -8132,7 +8877,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -8148,7 +8910,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "gray_dye",
@@ -8235,7 +9017,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -8256,7 +9055,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -8276,7 +9092,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -8314,7 +9147,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -8330,7 +9180,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "green_dye",
@@ -8374,7 +9244,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -8422,7 +9309,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -8476,7 +9380,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -8492,7 +9413,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "green_dye",
@@ -8579,7 +9520,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -8600,7 +9558,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -8620,7 +9595,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -8643,7 +9635,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -9285,7 +10293,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 8
+            "qty": 8,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "diamond",
@@ -9442,7 +10466,14 @@
         "ingredients": [
           {
             "item": "jungle_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "jungle_log",
+              "jungle_wood",
+              "stripped_jungle_log",
+              "stripped_jungle_wood"
+            ],
+            "anyOfLabel": "Jungle Log"
           }
         ]
       },
@@ -9690,7 +10721,24 @@
         "ingredients": [
           {
             "item": "acacia_leaves",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_leaves",
+              "azalea_leaves",
+              "birch_leaves",
+              "cherry_leaves",
+              "dark_oak_leaves",
+              "flowering_azalea_leaves",
+              "jungle_leaves",
+              "mangrove_leaves",
+              "oak_leaves",
+              "orange_poplar_leaves",
+              "pale_oak_leaves",
+              "red_poplar_leaves",
+              "spruce_leaves",
+              "yellow_poplar_leaves"
+            ],
+            "anyOfLabel": "Leaves"
           }
         ]
       },
@@ -9807,7 +10855,23 @@
         "ingredients": [
           {
             "item": "acacia_slab",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_slab",
+              "bamboo_slab",
+              "birch_slab",
+              "cherry_slab",
+              "crimson_slab",
+              "dark_oak_slab",
+              "jungle_slab",
+              "mangrove_slab",
+              "oak_slab",
+              "pale_oak_slab",
+              "poplar_slab",
+              "spruce_slab",
+              "warped_slab"
+            ],
+            "anyOfLabel": "Wooden Slab"
           },
           {
             "item": "bookshelf",
@@ -9874,7 +10938,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -9890,7 +10971,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "light_blue_dye",
@@ -9934,7 +11035,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -9982,7 +11100,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -10036,7 +11171,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -10052,7 +11204,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "light_blue_dye",
@@ -10139,7 +11311,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -10160,7 +11349,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -10180,7 +11386,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -10218,7 +11441,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -10234,7 +11474,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "light_gray_dye",
@@ -10278,7 +11538,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -10326,7 +11603,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -10380,7 +11674,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -10396,7 +11707,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "light_gray_dye",
@@ -10483,7 +11814,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -10504,7 +11852,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -10524,7 +11889,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -10607,7 +11989,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -10623,7 +12022,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "lime_dye",
@@ -10667,7 +12086,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -10715,7 +12151,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -10769,7 +12222,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -10785,7 +12255,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "lime_dye",
@@ -10872,7 +12362,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -10893,7 +12400,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -10913,7 +12437,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -10976,7 +12517,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -11036,7 +12593,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -11052,7 +12626,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "magenta_dye",
@@ -11096,7 +12690,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -11144,7 +12755,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -11198,7 +12826,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -11214,7 +12859,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "magenta_dye",
@@ -11301,7 +12966,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -11322,7 +13004,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -11342,7 +13041,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -11534,7 +13250,14 @@
         "ingredients": [
           {
             "item": "mangrove_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "mangrove_log",
+              "mangrove_wood",
+              "stripped_mangrove_log",
+              "stripped_mangrove_wood"
+            ],
+            "anyOfLabel": "Mangrove Log"
           }
         ]
       },
@@ -12040,7 +13763,13 @@
         "ingredients": [
           {
             "item": "brown_mushroom",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "brown_mushroom",
+              "red_mushroom",
+              "shelf_mushroom"
+            ],
+            "anyOfLabel": "Mushroom"
           },
           {
             "item": "bowl",
@@ -12169,7 +13898,13 @@
         "ingredients": [
           {
             "item": "copper_nugget",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "copper_nugget",
+              "gold_nugget",
+              "iron_nugget"
+            ],
+            "anyOfLabel": "Metal Nugget"
           },
           {
             "item": "paper",
@@ -12701,7 +14436,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 8
+            "qty": 8,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "redstone",
@@ -12858,7 +14609,14 @@
         "ingredients": [
           {
             "item": "oak_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "oak_log",
+              "oak_wood",
+              "stripped_oak_log",
+              "stripped_oak_wood"
+            ],
+            "anyOfLabel": "Oak Log"
           }
         ]
       },
@@ -13067,7 +14825,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -13083,7 +14858,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "orange_dye",
@@ -13127,7 +14922,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -13175,7 +14987,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -13229,7 +15058,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -13249,7 +15095,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "orange_dye",
@@ -13340,7 +15206,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -13361,7 +15244,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -13381,7 +15281,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -13579,7 +15496,26 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ],
+            "anyOfLabel": "Wool"
           }
         ]
       },
@@ -13756,7 +15692,14 @@
         "ingredients": [
           {
             "item": "pale_oak_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "pale_oak_log",
+              "pale_oak_wood",
+              "stripped_pale_oak_log",
+              "stripped_pale_oak_wood"
+            ],
+            "anyOfLabel": "Pale Oak Log"
           }
         ]
       },
@@ -13986,7 +15929,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -14002,7 +15962,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "pink_dye",
@@ -14046,7 +16026,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -14094,7 +16091,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -14148,7 +16162,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -14168,7 +16199,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "pink_dye",
@@ -14259,7 +16310,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -14280,7 +16348,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -14300,7 +16385,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -14316,7 +16418,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           },
           {
             "item": "cobblestone",
@@ -15072,7 +17190,14 @@
         "ingredients": [
           {
             "item": "poplar_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "poplar_log",
+              "poplar_wood",
+              "stripped_poplar_log",
+              "stripped_poplar_wood"
+            ],
+            "anyOfLabel": "Poplar Log"
           }
         ]
       },
@@ -15447,7 +17572,13 @@
           },
           {
             "item": "blue_egg",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "blue_egg",
+              "brown_egg",
+              "egg"
+            ],
+            "anyOfLabel": "Egg"
           }
         ]
       },
@@ -15502,7 +17633,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "red_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -15518,7 +17666,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "purple_dye",
@@ -15562,7 +17730,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "red_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -15610,7 +17795,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "red_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -15668,7 +17870,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "red_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -15684,7 +17903,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "purple_dye",
@@ -15771,7 +18010,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "red_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -15792,7 +18048,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -15812,7 +18085,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -16223,7 +18513,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "white_bed",
+              "yellow_bed"
+            ]
           }
         ]
       }
@@ -16239,7 +18546,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "red_dye",
@@ -16283,7 +18610,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "white_carpet",
+              "yellow_carpet"
+            ]
           }
         ]
       }
@@ -16331,7 +18675,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "white_cushion",
+              "yellow_cushion"
+            ]
           }
         ]
       },
@@ -16385,7 +18746,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "white_harness",
+              "yellow_harness"
+            ]
           }
         ]
       },
@@ -16549,7 +18927,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "red_dye",
@@ -16640,7 +19038,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "white_wool",
+              "yellow_wool"
+            ]
           }
         ]
       },
@@ -16661,7 +19076,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "white_wool_slab",
+              "yellow_wool_slab"
+            ]
           }
         ]
       }
@@ -16681,7 +19113,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "white_wool_stairs",
+              "yellow_wool_stairs"
+            ]
           }
         ]
       }
@@ -17231,7 +19680,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 6
+            "qty": 6,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "iron_ingot",
@@ -17402,7 +19867,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -17418,7 +19899,58 @@
         "ingredients": [
           {
             "item": "acacia_log",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "acacia_log",
+              "acacia_wood",
+              "birch_log",
+              "birch_wood",
+              "cherry_log",
+              "cherry_wood",
+              "crimson_hyphae",
+              "crimson_stem",
+              "dark_oak_log",
+              "dark_oak_wood",
+              "jungle_log",
+              "jungle_wood",
+              "mangrove_log",
+              "mangrove_wood",
+              "oak_log",
+              "oak_wood",
+              "pale_oak_log",
+              "pale_oak_wood",
+              "poplar_log",
+              "poplar_wood",
+              "spruce_log",
+              "spruce_wood",
+              "stripped_acacia_log",
+              "stripped_acacia_wood",
+              "stripped_birch_log",
+              "stripped_birch_wood",
+              "stripped_cherry_log",
+              "stripped_cherry_wood",
+              "stripped_crimson_hyphae",
+              "stripped_crimson_stem",
+              "stripped_dark_oak_log",
+              "stripped_dark_oak_wood",
+              "stripped_jungle_log",
+              "stripped_jungle_wood",
+              "stripped_mangrove_log",
+              "stripped_mangrove_wood",
+              "stripped_oak_log",
+              "stripped_oak_wood",
+              "stripped_pale_oak_log",
+              "stripped_pale_oak_wood",
+              "stripped_poplar_log",
+              "stripped_poplar_wood",
+              "stripped_spruce_log",
+              "stripped_spruce_wood",
+              "stripped_warped_hyphae",
+              "stripped_warped_stem",
+              "warped_hyphae",
+              "warped_stem"
+            ],
+            "anyOfLabel": "Log"
           },
           {
             "item": "furnace",
@@ -17707,11 +20239,67 @@
           },
           {
             "item": "soul_sand",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "soul_sand",
+              "soul_soil"
+            ],
+            "anyOfLabel": "Soul Fire Base Blocks"
           },
           {
             "item": "acacia_log",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_log",
+              "acacia_wood",
+              "birch_log",
+              "birch_wood",
+              "cherry_log",
+              "cherry_wood",
+              "crimson_hyphae",
+              "crimson_stem",
+              "dark_oak_log",
+              "dark_oak_wood",
+              "jungle_log",
+              "jungle_wood",
+              "mangrove_log",
+              "mangrove_wood",
+              "oak_log",
+              "oak_wood",
+              "pale_oak_log",
+              "pale_oak_wood",
+              "poplar_log",
+              "poplar_wood",
+              "spruce_log",
+              "spruce_wood",
+              "stripped_acacia_log",
+              "stripped_acacia_wood",
+              "stripped_birch_log",
+              "stripped_birch_wood",
+              "stripped_cherry_log",
+              "stripped_cherry_wood",
+              "stripped_crimson_hyphae",
+              "stripped_crimson_stem",
+              "stripped_dark_oak_log",
+              "stripped_dark_oak_wood",
+              "stripped_jungle_log",
+              "stripped_jungle_wood",
+              "stripped_mangrove_log",
+              "stripped_mangrove_wood",
+              "stripped_oak_log",
+              "stripped_oak_wood",
+              "stripped_pale_oak_log",
+              "stripped_pale_oak_wood",
+              "stripped_poplar_log",
+              "stripped_poplar_wood",
+              "stripped_spruce_log",
+              "stripped_spruce_wood",
+              "stripped_warped_hyphae",
+              "stripped_warped_stem",
+              "warped_hyphae",
+              "warped_stem"
+            ],
+            "anyOfLabel": "Log"
           }
         ]
       },
@@ -17755,7 +20343,11 @@
         "ingredients": [
           {
             "item": "charcoal",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "charcoal",
+              "coal"
+            ]
           },
           {
             "item": "stick",
@@ -17763,7 +20355,12 @@
           },
           {
             "item": "soul_sand",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "soul_sand",
+              "soul_soil"
+            ],
+            "anyOfLabel": "Soul Fire Base Blocks"
           }
         ]
       },
@@ -18014,7 +20611,14 @@
         "ingredients": [
           {
             "item": "spruce_log",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "spruce_log",
+              "spruce_wood",
+              "stripped_spruce_log",
+              "stripped_spruce_wood"
+            ],
+            "anyOfLabel": "Spruce Log"
           }
         ]
       },
@@ -18176,7 +20780,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -18230,7 +20850,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18331,7 +20957,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18352,7 +20984,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18389,7 +21027,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18426,7 +21070,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18463,7 +21113,13 @@
         "ingredients": [
           {
             "item": "blackstone",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "blackstone",
+              "cobbled_deepslate",
+              "cobblestone"
+            ],
+            "anyOfLabel": "Stone Tool Materials"
           },
           {
             "item": "stick",
@@ -18952,7 +21608,13 @@
           },
           {
             "item": "brown_mushroom",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "brown_mushroom",
+              "red_mushroom",
+              "shelf_mushroom"
+            ],
+            "anyOfLabel": "Mushroom"
           },
           {
             "item": "allium",
@@ -19090,7 +21752,11 @@
           },
           {
             "item": "red_sand",
-            "qty": 4
+            "qty": 4,
+            "anyOf": [
+              "red_sand",
+              "sand"
+            ]
           }
         ]
       },
@@ -19126,7 +21792,11 @@
         "ingredients": [
           {
             "item": "charcoal",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "charcoal",
+              "coal"
+            ]
           },
           {
             "item": "stick",
@@ -19202,7 +21872,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       },
@@ -19602,7 +22288,14 @@
         "ingredients": [
           {
             "item": "stripped_warped_hyphae",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "stripped_warped_hyphae",
+              "stripped_warped_stem",
+              "warped_hyphae",
+              "warped_stem"
+            ],
+            "anyOfLabel": "Warped Stems"
           }
         ]
       },
@@ -21147,7 +23840,23 @@
           },
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Planks"
           }
         ]
       }
@@ -21163,7 +23872,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "white_dye",
@@ -21321,7 +24050,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "white_dye",
@@ -21541,7 +24290,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21562,7 +24327,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21583,7 +24364,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 3
+            "qty": 3,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21604,7 +24401,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21625,7 +24438,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21646,7 +24475,23 @@
         "ingredients": [
           {
             "item": "acacia_planks",
-            "qty": 2
+            "qty": 2,
+            "anyOf": [
+              "acacia_planks",
+              "bamboo_planks",
+              "birch_planks",
+              "cherry_planks",
+              "crimson_planks",
+              "dark_oak_planks",
+              "jungle_planks",
+              "mangrove_planks",
+              "oak_planks",
+              "pale_oak_planks",
+              "poplar_planks",
+              "spruce_planks",
+              "warped_planks"
+            ],
+            "anyOfLabel": "Wooden Tool Materials"
           },
           {
             "item": "stick",
@@ -21717,7 +24562,24 @@
           },
           {
             "item": "black_bed",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bed",
+              "blue_bed",
+              "brown_bed",
+              "cyan_bed",
+              "gray_bed",
+              "green_bed",
+              "light_blue_bed",
+              "light_gray_bed",
+              "lime_bed",
+              "magenta_bed",
+              "orange_bed",
+              "pink_bed",
+              "purple_bed",
+              "red_bed",
+              "white_bed"
+            ]
           }
         ]
       }
@@ -21733,7 +24595,27 @@
         "ingredients": [
           {
             "item": "black_bundle",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_bundle",
+              "blue_bundle",
+              "brown_bundle",
+              "bundle",
+              "cyan_bundle",
+              "gray_bundle",
+              "green_bundle",
+              "light_blue_bundle",
+              "light_gray_bundle",
+              "lime_bundle",
+              "magenta_bundle",
+              "orange_bundle",
+              "pink_bundle",
+              "purple_bundle",
+              "red_bundle",
+              "white_bundle",
+              "yellow_bundle"
+            ],
+            "anyOfLabel": "Bundle"
           },
           {
             "item": "yellow_dye",
@@ -21777,7 +24659,24 @@
           },
           {
             "item": "black_carpet",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_carpet",
+              "blue_carpet",
+              "brown_carpet",
+              "cyan_carpet",
+              "gray_carpet",
+              "green_carpet",
+              "light_blue_carpet",
+              "light_gray_carpet",
+              "lime_carpet",
+              "magenta_carpet",
+              "orange_carpet",
+              "pink_carpet",
+              "purple_carpet",
+              "red_carpet",
+              "white_carpet"
+            ]
           }
         ]
       }
@@ -21825,7 +24724,24 @@
           },
           {
             "item": "black_cushion",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_cushion",
+              "blue_cushion",
+              "brown_cushion",
+              "cyan_cushion",
+              "gray_cushion",
+              "green_cushion",
+              "light_blue_cushion",
+              "light_gray_cushion",
+              "lime_cushion",
+              "magenta_cushion",
+              "orange_cushion",
+              "pink_cushion",
+              "purple_cushion",
+              "red_cushion",
+              "white_cushion"
+            ]
           }
         ]
       },
@@ -21879,7 +24795,24 @@
           },
           {
             "item": "black_harness",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_harness",
+              "blue_harness",
+              "brown_harness",
+              "cyan_harness",
+              "gray_harness",
+              "green_harness",
+              "light_blue_harness",
+              "light_gray_harness",
+              "lime_harness",
+              "magenta_harness",
+              "orange_harness",
+              "pink_harness",
+              "purple_harness",
+              "red_harness",
+              "white_harness"
+            ]
           }
         ]
       },
@@ -21899,7 +24832,27 @@
         "ingredients": [
           {
             "item": "black_shulker_box",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_shulker_box",
+              "blue_shulker_box",
+              "brown_shulker_box",
+              "cyan_shulker_box",
+              "gray_shulker_box",
+              "green_shulker_box",
+              "light_blue_shulker_box",
+              "light_gray_shulker_box",
+              "lime_shulker_box",
+              "magenta_shulker_box",
+              "orange_shulker_box",
+              "pink_shulker_box",
+              "purple_shulker_box",
+              "red_shulker_box",
+              "shulker_box",
+              "white_shulker_box",
+              "yellow_shulker_box"
+            ],
+            "anyOfLabel": "Shulker Box"
           },
           {
             "item": "yellow_dye",
@@ -21986,7 +24939,24 @@
           },
           {
             "item": "black_wool",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool",
+              "blue_wool",
+              "brown_wool",
+              "cyan_wool",
+              "gray_wool",
+              "green_wool",
+              "light_blue_wool",
+              "light_gray_wool",
+              "lime_wool",
+              "magenta_wool",
+              "orange_wool",
+              "pink_wool",
+              "purple_wool",
+              "red_wool",
+              "white_wool"
+            ]
           }
         ]
       },
@@ -22007,7 +24977,24 @@
           },
           {
             "item": "black_wool_slab",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_slab",
+              "blue_wool_slab",
+              "brown_wool_slab",
+              "cyan_wool_slab",
+              "gray_wool_slab",
+              "green_wool_slab",
+              "light_blue_wool_slab",
+              "light_gray_wool_slab",
+              "lime_wool_slab",
+              "magenta_wool_slab",
+              "orange_wool_slab",
+              "pink_wool_slab",
+              "purple_wool_slab",
+              "red_wool_slab",
+              "white_wool_slab"
+            ]
           }
         ]
       }
@@ -22027,7 +25014,24 @@
           },
           {
             "item": "black_wool_stairs",
-            "qty": 1
+            "qty": 1,
+            "anyOf": [
+              "black_wool_stairs",
+              "blue_wool_stairs",
+              "brown_wool_stairs",
+              "cyan_wool_stairs",
+              "gray_wool_stairs",
+              "green_wool_stairs",
+              "light_blue_wool_stairs",
+              "light_gray_wool_stairs",
+              "lime_wool_stairs",
+              "magenta_wool_stairs",
+              "orange_wool_stairs",
+              "pink_wool_stairs",
+              "purple_wool_stairs",
+              "red_wool_stairs",
+              "white_wool_stairs"
+            ]
           }
         ]
       }

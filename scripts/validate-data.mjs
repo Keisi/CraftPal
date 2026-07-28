@@ -37,6 +37,12 @@ const PUBLIC_DIR = path.join(ROOT, 'public')
 
 const MAX_PRINTED_ERRORS = 50
 
+// Icon-coverage floor default for a game whose game.json doesn't declare its
+// own `minIconCoverage` (see the check in validateGame). Real per-game values
+// as of 2026-07-28: Palworld ~100%, Minecraft ~73% (1,182/1,618 items+
+// stations — the rest structurally have no representative texture).
+const DEFAULT_MIN_ICON_COVERAGE = 0.95
+
 function fail(errors) {
   console.error(`\nvalidate-data: FAILED (${errors.length} error${errors.length === 1 ? '' : 's'})\n`)
   for (const e of errors.slice(0, MAX_PRINTED_ERRORS)) console.error(`  - ${e}`)
@@ -390,6 +396,7 @@ function validateGame(gameId, errors) {
       skipped: [],
       itemsMissingIcon: 0,
       stationsMissingIcon: 0,
+      anyOfCount: 0,
     }
   }
 
@@ -402,6 +409,9 @@ function validateGame(gameId, errors) {
   const tierIds = new Set((manifest.tiers ?? []).map((t) => t.id))
   const assetBase = manifest.assetBase ?? ''
   const publicAssetDir = path.join(PUBLIC_DIR, ...assetBase.split('/').filter(Boolean))
+
+  let anyOfCount = 0
+  const reportedBadAnyOfIds = new Set() // dedupe: one error per distinct (item, ingredient, bad-alt) triple
 
   // 1. Every recipe.ingredients[].item must exist in items.
   // 2. Every recipe.stations[] must exist in stations.
@@ -430,6 +440,54 @@ function validateGame(gameId, errors) {
         if (!(ing.item in items)) {
           errors.push(`[${gameId}] item "${id}": recipe references unknown ingredient item "${ing.item}"`)
         }
+
+        // schema v3 axis 1 ("any of a set" ingredients, PLAN.md §1 decision 3 /
+        // CLAUDE.md "Known schema limit"): `anyOf` is optional and purely
+        // additive — `item` stays the sole representative tree.js/plan.js
+        // maths follow, so these checks are hard errors at the same tier as a
+        // dangling ingredient reference above, not a softer warning tier.
+        if (ing.anyOf !== undefined) {
+          anyOfCount++
+          if (!Array.isArray(ing.anyOf)) {
+            errors.push(`[${gameId}] item "${id}": recipe ingredient "${ing.item}" has a non-array anyOf`)
+          } else {
+            if (ing.anyOf.length < 2) {
+              errors.push(
+                `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf with ${ing.anyOf.length} entr${ing.anyOf.length === 1 ? 'y' : 'ies'} — anyOf must have at least 2 (a single option is "no choice" and must omit anyOf entirely)`,
+              )
+            }
+            // The invariant that keeps the tree maths honest: expansion and
+            // quantities always follow `item`, so `item` must itself be one
+            // of the acceptable substitutes anyOf lists — otherwise anyOf
+            // would describe a different, disconnected set of options.
+            if (!ing.anyOf.includes(ing.item)) {
+              errors.push(
+                `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf that does not include "${ing.item}" itself — anyOf must contain the ingredient's own item, since tree.js/plan.js quantities always follow item, not anyOf`,
+              )
+            }
+            for (const alt of ing.anyOf) {
+              if (!(alt in items) && !reportedBadAnyOfIds.has(`${id} ${ing.item} ${alt}`)) {
+                reportedBadAnyOfIds.add(`${id} ${ing.item} ${alt}`)
+                errors.push(
+                  `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf referencing unknown item "${alt}"`,
+                )
+              }
+            }
+          }
+        }
+
+        if (ing.anyOfLabel !== undefined) {
+          if (typeof ing.anyOfLabel !== 'string' || ing.anyOfLabel.length === 0) {
+            errors.push(
+              `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOfLabel that is not a non-empty string`,
+            )
+          }
+          if (ing.anyOf === undefined) {
+            errors.push(
+              `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOfLabel but no anyOf — a label with no set makes no sense`,
+            )
+          }
+        }
       }
     }
   }
@@ -450,6 +508,34 @@ function validateGame(gameId, errors) {
       optional: true,
       missingIconCounter: () => stationsMissingIcon++,
     })
+  }
+
+  // 4b. Icon-COVERAGE floor: a missing icon is legal per-item (4, above), but
+  // an unbounded COUNT of them is not — that flag exists for a genuinely
+  // small, documented set (Minecraft's own ~27% with no representative
+  // texture at all: slabs/stairs/etc. reusing a parent material via a model,
+  // entity-rendered blocks), not as an escape hatch that lets a real
+  // collapse "pass". Real regression this closes (2026-07-28): a
+  // fetch-minecraft.mjs re-run in a cold-cache worktree aborted its icon loop
+  // early and abandoned every remaining item — INCLUDING ones whose icon
+  // file already existed on disk — dropping items-with-an-icon from 1,182 to
+  // 11 while validate-data.mjs still printed "OK" because `optional: true`
+  // has no ceiling. `minIconCoverage` is manifest-declared (fraction of
+  // items+stations that must resolve an icon) because the legitimate floor
+  // genuinely differs by game; a game that doesn't declare one gets a
+  // conservative default, since near-complete coverage is the norm and an
+  // undeclared game silently regressing should still be caught.
+  const totalIconable = Object.keys(items).length + Object.keys(stations).length
+  const totalResolvedIcon = totalIconable - itemsMissingIcon - stationsMissingIcon
+  const minIconCoverage = manifest.minIconCoverage ?? DEFAULT_MIN_ICON_COVERAGE
+  if (totalIconable > 0 && totalResolvedIcon / totalIconable < minIconCoverage) {
+    errors.push(
+      `[${gameId}] icon coverage collapsed: only ${totalResolvedIcon}/${totalIconable} items+stations resolve an ` +
+        `icon (${((totalResolvedIcon / totalIconable) * 100).toFixed(1)}%), below this game's minIconCoverage floor ` +
+        `of ${(minIconCoverage * 100).toFixed(0)}% (game.json "minIconCoverage", default ${DEFAULT_MIN_ICON_COVERAGE} when undeclared) — ` +
+        `a real icon-set regression, not a documented per-item gap. Do not raise the floor to silence this; fix the ` +
+        `data (or the scraper) instead.`,
+    )
   }
 
   // 5. Generated datasets (§8) — each optional per game; absent = skip, not fail.
@@ -493,6 +579,7 @@ function validateGame(gameId, errors) {
     skipped,
     itemsMissingIcon,
     stationsMissingIcon,
+    anyOfCount,
   }
 }
 
@@ -509,6 +596,7 @@ let totalHabitatFiles = 0
 let totalMarkers = 0
 let totalItemsMissingIcon = 0
 let totalStationsMissingIcon = 0
+let totalAnyOf = 0
 const skippedByGame = [] // "<gameId>: <dataset>, <dataset>"
 const tileSummaryByGame = [] // "<gameId>: z0 1/1, z1 4/4, ..."
 
@@ -523,6 +611,7 @@ for (const gameId of gameDirs) {
     skipped,
     itemsMissingIcon,
     stationsMissingIcon,
+    anyOfCount,
   } = validateGame(gameId, errors)
   totalItems += itemCount
   totalStations += stationCount
@@ -531,6 +620,7 @@ for (const gameId of gameDirs) {
   totalMarkers += markerCount
   totalItemsMissingIcon += itemsMissingIcon
   totalStationsMissingIcon += stationsMissingIcon
+  totalAnyOf += anyOfCount
   if (skipped.length > 0) skippedByGame.push(`${gameId}: ${skipped.join(', ')}`)
   if (tileZoomCounts) {
     const perZoom = Object.entries(tileZoomCounts)
@@ -557,6 +647,6 @@ const missingIconNote =
 console.log(
   `validate-data: OK — ${gameDirs.length} game${gameDirs.length === 1 ? '' : 's'} (${gameDirs.join(', ')}), ` +
     `${totalItems} items, ${totalStations} stations, ${totalPals} pals, ${totalHabitatFiles} habitat files, ` +
-    `${totalMarkers} map markers, all references resolve and every present icon resolves to a real file.` +
+    `${totalMarkers} map markers, ${totalAnyOf} anyOf ingredient(s), all references resolve and every present icon resolves to a real file.` +
     `${missingIconNote}${tilesNote}${skippedNote}`,
 )

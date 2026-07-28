@@ -167,6 +167,122 @@ describe('buildTree', () => {
   });
 });
 
+describe('buildTree: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)', () => {
+  test('anyOf/anyOfLabel are attached to the CHILD node, not read by the parent\'s math', () => {
+    const items = {
+      campfire: {
+        recipe: {
+          stations: ['crafting_table'],
+          yields: 1,
+          ingredients: [
+            {
+              item: 'acacia_log',
+              qty: 3,
+              anyOf: ['acacia_log', 'oak_log', 'spruce_log'],
+              anyOfLabel: 'Log',
+            },
+          ],
+        },
+      },
+      acacia_log: {},
+    };
+    const node = buildTree(items, 'campfire', 2);
+    const child = node.children[0];
+    assert.equal(child.itemId, 'acacia_log');
+    assert.equal(child.qty, 6); // 3 * 2 crafts — anyOf must not affect qty math
+    assert.deepEqual(child.anyOf, ['acacia_log', 'oak_log', 'spruce_log']);
+    assert.equal(child.anyOfLabel, 'Log');
+  });
+
+  test('anyOf with no anyOfLabel: the field is simply absent on the node (not null/undefined-but-present)', () => {
+    const items = {
+      thing: {
+        recipe: {
+          stations: ['s'],
+          yields: 1,
+          ingredients: [{ item: 'a', qty: 1, anyOf: ['a', 'b'] }],
+        },
+      },
+      a: {},
+    };
+    const node = buildTree(items, 'thing', 1);
+    assert.deepEqual(node.children[0].anyOf, ['a', 'b']);
+    assert.ok(!Object.hasOwn(node.children[0], 'anyOfLabel'));
+  });
+
+  test('an ingredient with no anyOf produces a node with no anyOf/anyOfLabel keys at all', () => {
+    const items = {
+      thing: {
+        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] },
+      },
+      a: {},
+    };
+    const node = buildTree(items, 'thing', 1);
+    assert.ok(!Object.hasOwn(node.children[0], 'anyOf'));
+    assert.ok(!Object.hasOwn(node.children[0], 'anyOfLabel'));
+  });
+
+  test('REGRESSION GUARD (decision 1): a tree built from a recipe WITH anyOf is byte-identical to the same recipe WITHOUT it, once anyOf/anyOfLabel are stripped', () => {
+    // Same shape as the real campfire/charcoal case: a multi-level recipe
+    // where one ingredient slot is anyOf-flagged. Quantities, crafts,
+    // stations, and structure must be completely unaffected by anyOf's
+    // presence — it is purely additive UI truth layered on top of `item`.
+    const withAnyOf = {
+      campfire: {
+        recipe: {
+          stations: ['crafting_table'],
+          yields: 1,
+          ingredients: [
+            { item: 'stick', qty: 3 },
+            { item: 'charcoal', qty: 1, anyOf: ['charcoal', 'coal'], anyOfLabel: 'Coals' },
+            { item: 'acacia_log', qty: 3, anyOf: ['acacia_log', 'oak_log', 'spruce_log'], anyOfLabel: 'Log' },
+          ],
+        },
+      },
+      charcoal: {
+        recipe: {
+          stations: ['furnace'],
+          yields: 1,
+          ingredients: [{ item: 'acacia_log', qty: 1, anyOf: ['acacia_log', 'oak_log'], anyOfLabel: 'Log' }],
+        },
+      },
+      stick: {},
+      acacia_log: {},
+    };
+    const withoutAnyOf = {
+      campfire: {
+        recipe: {
+          stations: ['crafting_table'],
+          yields: 1,
+          ingredients: [
+            { item: 'stick', qty: 3 },
+            { item: 'charcoal', qty: 1 },
+            { item: 'acacia_log', qty: 3 },
+          ],
+        },
+      },
+      charcoal: {
+        recipe: { stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] },
+      },
+      stick: {},
+      acacia_log: {},
+    };
+
+    function stripAnyOf(node) {
+      const { anyOf: _anyOf, anyOfLabel: _anyOfLabel, ...rest } = node;
+      return { ...rest, children: node.children.map(stripAnyOf) };
+    }
+
+    const treeWith = buildTree(withAnyOf, 'campfire', 5);
+    const treeWithout = buildTree(withoutAnyOf, 'campfire', 5);
+    assert.deepEqual(stripAnyOf(treeWith), treeWithout);
+
+    // And the raw-materials aggregation (which only ever reads itemId/qty)
+    // is identical too, regardless of anyOf.
+    assert.deepEqual([...aggregateRaw(treeWith).entries()], [...aggregateRaw(treeWithout).entries()]);
+  });
+});
+
 describe('aggregateRaw', () => {
   test('sums a shared ingredient across branches', () => {
     // top needs 1x branchA (-> 2x raw) and 1x branchB (-> 3x raw): raw totals 5.

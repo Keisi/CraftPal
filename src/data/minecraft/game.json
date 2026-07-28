@@ -4,6 +4,7 @@
   "tagline": "Minecraft crafting-tree explorer",
   "assetBase": "games/minecraft/",
   "datasets": [],
+  "minIconCoverage": 0.7,
   "attribution": [
     { "label": "misode/mcmeta", "url": "https://github.com/misode/mcmeta" },
     { "label": "Mojang / Minecraft", "url": "https://www.minecraft.net" }

@@ -26,9 +26,20 @@ export function buildTree(items, itemId, qty = 1, visited = new Set()) {
   // deeper recursion copies again from here) — exactly PLAN.md §4.
   const next = new Set(visited).add(itemId);
 
-  const children = recipe.ingredients.map((ingredient) =>
-    buildTree(items, ingredient.item, ingredient.qty * crafts, next)
-  );
+  // schema v3 axis 1 ("any of a set" ingredients, PLAN.md §1 decision 3):
+  // `anyOf`/`anyOfLabel` live on the INGREDIENT SLOT (this parent's use of
+  // this child), not on the item itself, so they're attached to the returned
+  // child node after recursion — never read by buildTree's own math. `item`
+  // stays the sole representative that expansion and quantities follow;
+  // this is purely additive UI truth about substitutability layered on top.
+  const children = recipe.ingredients.map((ingredient) => {
+    const child = buildTree(items, ingredient.item, ingredient.qty * crafts, next);
+    if (ingredient.anyOf) {
+      child.anyOf = ingredient.anyOf;
+      if (ingredient.anyOfLabel) child.anyOfLabel = ingredient.anyOfLabel;
+    }
+    return child;
+  });
 
   return {
     itemId,

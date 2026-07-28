@@ -2,6 +2,7 @@ import { useGame } from '../lib/GameContext.js';
 import { childPath, ROOT_PATH } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
+import { AnyOfChip } from './AnyOfChip.jsx';
 import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Compact crafting-tree view: one row per node, depth shown by indentation
@@ -74,6 +75,8 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
             {yieldsPerCraft.toLocaleString()}
           </span>
         )}
+
+        {node.anyOf && <AnyOfChip anyOf={node.anyOf} anyOfLabel={node.anyOfLabel} compact />}
 
         {node.stations !== null && <StationChip stationIds={node.stations} compact />}
 

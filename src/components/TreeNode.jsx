@@ -2,6 +2,7 @@ import { useGame } from '../lib/GameContext.js';
 import { childPath } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
+import { AnyOfChip } from './AnyOfChip.jsx';
 import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Per-node collapse (Phase 4, PLAN.md §5): clicking a node card that has
@@ -76,6 +77,7 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
         )}
       </div>
 
+      {node.anyOf && <AnyOfChip anyOf={node.anyOf} anyOfLabel={node.anyOfLabel} />}
       {isCrafted && <StationChip stationIds={node.stations} />}
     </div>
   );

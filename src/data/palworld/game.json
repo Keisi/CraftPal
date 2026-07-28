@@ -4,6 +4,7 @@
   "tagline": "Palworld crafting-tree explorer",
   "assetBase": "games/palworld/",
   "datasets": ["map", "habitats", "pals"],
+  "minIconCoverage": 0.99,
   "attribution": [
     { "label": "paldb.cc", "url": "https://paldb.cc" },
     { "label": "palworld.gg", "url": "https://palworld.gg" }

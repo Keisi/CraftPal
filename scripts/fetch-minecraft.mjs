@@ -67,6 +67,17 @@
 //   Palworld's multi-recipe items). A #tag string is never emitted as an
 //   item id — only resolved, concrete item ids reach items.json.
 //
+//   Schema v3 axis 1 ("any of a set" — PLAN.md §1 decision 3, CLAUDE.md
+//   "Known schema limit"): the multi-member case above no longer just picks a
+//   representative and drops the rest silently. Every ingredient resolved
+//   from 2+ candidates ALSO carries `anyOf` (every id that was in play,
+//   deterministically sorted) on top of `item` (still the sole representative
+//   tree.js/plan.js math follows — this is purely additive, no schemaVersion
+//   bump). When the slot came from a NAMED tag it also carries `anyOfLabel`
+//   (deriveTagLabel() below); a bare alternatives array has no name to derive
+//   one from, so it ships with no label and the UI falls back to a count.
+//
+
 //   yields = result.count ?? 1 (brewing/smithing_transform/crafting_dye/
 //   crafting_transmute never carry a result count in practice -> yields 1).
 //
@@ -125,6 +136,12 @@ const PUBLIC_ICONS_DIR = path.join(ROOT, 'public', 'games', 'minecraft', 'icons'
 const ITEMS_OUT = path.join(GAME_DATA_DIR, 'items.json');
 const STATIONS_OUT = path.join(GAME_DATA_DIR, 'stations.json');
 const REPORT_OUT = path.join(CACHE_DIR, 'fetch-minecraft-report.json');
+// Persisted NEGATIVE icon-resolution cache — ids CONFIRMED (all 5 tiers
+// exhausted, in a non-partial run) to have no representative texture at all.
+// Never written to for an id --limit merely left unattempted (see the icon
+// section below); only real, fully-checked misses land here, so trusting it
+// on a later run can never mask an id that just wasn't tried yet.
+const NO_ICON_CACHE_FILE = path.join(CACHE_DIR, 'no-icon.json');
 
 const RAW_BASE = 'https://raw.githubusercontent.com/misode/mcmeta';
 const RECIPES_URL = `${RAW_BASE}/summary/data/recipe/data.min.json`;
@@ -147,6 +164,17 @@ const MIN_INTERVAL_MS = 120;
 // upstream format change rather than silently shipping a partial dataset.
 const EXPECTED_RECIPE_COUNT = 1978;
 const MIN_RECIPE_COUNT = Math.floor(EXPECTED_RECIPE_COUNT * 0.9);
+
+// Tripwire: hard-error if icon coverage collapses relative to the real value
+// observed 2026-07-28 (1,182/1,610 items resolve an icon; the rest are the
+// documented ~27% with no representative texture at all). Added after a real
+// regression: a --limit run in a worktree with a cold scripts/.cache/ but a
+// fully-populated public/ dir dropped this to 11 and validate-data.mjs's
+// `optional` icon flag didn't catch it (see the icon-resolution section for
+// the full story and the fix). Only asserted when the run had a genuine
+// chance to observe the whole registry — see `iconFloorApplies` below.
+const EXPECTED_ICON_COUNT = 1182;
+const MIN_ICON_COUNT = Math.floor(EXPECTED_ICON_COUNT * 0.9);
 
 const RECIPE_TYPE_STATION = {
   'minecraft:crafting_shaped': 'crafting_table',
@@ -198,6 +226,79 @@ function titleCase(id) {
     .split('_')
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ');
+}
+function capitalizeWord(w) {
+  return w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w;
+}
+
+// ---------------------------------------------------------------------------
+// schema v3 axis 1 ("any of a set" ingredients — PLAN.md §1 decision 3, CLAUDE.md
+// "Known schema limit"). A recipe slot keyed on a multi-member tag or a raw
+// alternatives array no longer collapses silently to its representative: the
+// representative stays authoritative (tree.js/plan.js math is untouched — see
+// decision 1) but the slot also carries `anyOf` (every id that was in play,
+// deterministically sorted) and, when the slot came from a NAMED tag,
+// `anyOfLabel` (a human label derived from the tag — a bare alternatives array
+// has no name to derive one from, so it gets no label, only a count in the UI).
+// ---------------------------------------------------------------------------
+
+// Naive plural -> singular for one ASCII snake_case tag segment. Deliberately
+// simple (no inflection library) — every result is VALIDATED against a real
+// resolved item's own display name before use (see deriveTagLabel), so a wrong
+// guess here just fails validation and falls back to the tag's verbatim word
+// instead of shipping something wrong.
+function naiveSingularize(word) {
+  if (word.endsWith('ies') && word.length > 3) return `${word.slice(0, -3)}y`;
+  if (word.endsWith('xes') || word.endsWith('ses') || word.endsWith('ches') || word.endsWith('shes')) {
+    return word.slice(0, -2);
+  }
+  if (word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * Derive anyOfLabel from a resolved tag's own name plus the display name of
+ * the representative item chosen for it (decision 3: "#minecraft:logs" ->
+ * "Log", "#minecraft:planks" -> "Planks" — both from this ONE code path, no
+ * per-tag special-casing). Tag names are almost always the plural of the
+ * concept they group, but Minecraft's own item names are sometimes ALREADY
+ * plural with no singular counterpart ("Planks" is the item name — there is
+ * no "Plank" item) — so a blind singularization rule gets "planks" wrong.
+ * Instead: try the naive singular of the tag's last underscore segment, and
+ * only use it if it actually matches the last word of a REAL resolved item's
+ * display name; otherwise keep the tag's own word verbatim. Grounding the
+ * choice in real data (rather than trusting either inflection blindly) is
+ * what makes both examples above come out right from the same code.
+ * Always returns a non-empty string.
+ */
+function deriveTagLabel(tagName, representativeName) {
+  const words = tagName.split('_').filter(Boolean);
+  const last = words[words.length - 1] ?? tagName;
+  const prefix = words.slice(0, -1);
+  const repWords = String(representativeName).trim().split(/\s+/).filter(Boolean);
+  const repLastWord = repWords[repWords.length - 1] ?? '';
+  const singularLast = naiveSingularize(last);
+  const finalLast =
+    singularLast.toLowerCase() === repLastWord.toLowerCase() ? capitalizeWord(singularLast) : capitalizeWord(last);
+  return [...prefix.map(capitalizeWord), finalLast].join(' ');
+}
+
+/**
+ * Merge one ingredient occurrence into a recipe's ingredientsMap (itemId ->
+ * {qty, anyOf, anyOfLabel}). If the same itemId is hit twice within one
+ * recipe (e.g. two pattern symbols resolving to the same representative), qty
+ * accumulates and the FIRST occurrence's anyOf/anyOfLabel wins — deterministic
+ * given the fixed key-iteration order already used everywhere else in this
+ * file, and a rare case (two different tags collapsing onto the same
+ * representative within a single recipe).
+ */
+function addIngredient(ingredientsMap, itemId, qtyDelta, resolved) {
+  const existing = ingredientsMap.get(itemId);
+  if (existing) {
+    existing.qty += qtyDelta;
+    return;
+  }
+  ingredientsMap.set(itemId, { qty: qtyDelta, anyOf: resolved?.anyOf, anyOfLabel: resolved?.anyOfLabel });
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +389,7 @@ async function fetchIconCandidate(url, cacheFile, report) {
 // representative among several acceptable items" rule used for BOTH tag
 // members and raw ingredient-alternative arrays.
 // ---------------------------------------------------------------------------
-function makeResolver(tagsDoc, registryOrder, report) {
+function makeResolver(tagsDoc, registryOrder, report, resolveName) {
   const registryIndex = new Map(registryOrder.map((id, i) => [id, i]));
   const tagMemberCache = new Map(); // tagName -> Set<itemId>
 
@@ -328,11 +429,24 @@ function makeResolver(tagsDoc, registryOrder, report) {
    * Resolve a recipe-side reference — a plain item string, a "#tag" string,
    * or a raw array of alternative item/tag strings — to one deterministic
    * item id plus every alternate that was in play (chosen first).
-   * Multi-candidate resolutions are logged to report.multiMemberResolutions.
+   * Multi-candidate resolutions are logged to report.multiMemberResolutions,
+   * and now (schema v3 axis 1) also carry `anyOf` (every id in play,
+   * deterministically sorted — independent of the registry-order sort above
+   * that only decides the representative) and, when the ref was a NAMED tag
+   * (not a bare array), `anyOfLabel`.
    */
   function resolveRef(ref, context) {
-    if (ref === undefined || ref === null) return { chosen: null, alternates: [] };
-    const raw = Array.isArray(ref) ? ref.flatMap(candidatesForSingle) : candidatesForSingle(ref);
+    if (ref === undefined || ref === null) return { chosen: null, alternates: [], anyOf: undefined, anyOfLabel: undefined };
+    let tagName = null;
+    let raw;
+    if (Array.isArray(ref)) {
+      raw = ref.flatMap(candidatesForSingle);
+    } else if (typeof ref === 'string' && ref.startsWith('#')) {
+      tagName = stripNs(ref.slice(1));
+      raw = candidatesForSingle(ref);
+    } else {
+      raw = candidatesForSingle(ref);
+    }
     const distinct = [...new Set(raw)];
     distinct.sort((a, b) => {
       const ai = registryIndex.get(a) ?? Infinity;
@@ -340,10 +454,17 @@ function makeResolver(tagsDoc, registryOrder, report) {
       return ai - bi || a.localeCompare(b);
     });
     const chosen = distinct[0] ?? null;
+    let anyOf;
+    let anyOfLabel;
     if (distinct.length > 1) {
-      report.multiMemberResolutions.push({ context, chosen, dropped: distinct.slice(1) });
+      // Plain lexicographic — the UI-facing anyOf list, not the pick order.
+      anyOf = [...distinct].sort((a, b) => a.localeCompare(b));
+      if (tagName && chosen) {
+        anyOfLabel = deriveTagLabel(tagName, resolveName(chosen) ?? titleCase(chosen));
+      }
+      report.multiMemberResolutions.push({ context, tagName, chosen, dropped: distinct.slice(1), anyOfLabel });
     }
-    return { chosen, alternates: distinct };
+    return { chosen, alternates: distinct, anyOf, anyOfLabel };
   }
 
   return { resolveRef };
@@ -375,9 +496,9 @@ function extractRecipe(recipeId, r, resolveRef, report) {
     for (const [symbol, count] of counts) {
       const ref = r.key?.[symbol];
       if (ref === undefined) return fail(`pattern symbol "${symbol}" missing from key`);
-      const { chosen } = resolveRef(ref, `${recipeId}.key.${symbol}`);
-      if (!chosen) return fail(`key symbol "${symbol}" (${JSON.stringify(ref)}) did not resolve`);
-      ingredientsMap.set(chosen, (ingredientsMap.get(chosen) ?? 0) + count);
+      const resolved = resolveRef(ref, `${recipeId}.key.${symbol}`);
+      if (!resolved.chosen) return fail(`key symbol "${symbol}" (${JSON.stringify(ref)}) did not resolve`);
+      addIngredient(ingredientsMap, resolved.chosen, count, resolved);
     }
     if (ingredientsMap.size === 0) return fail('no ingredients parsed');
     return { ingredientsMap, yields: r.result?.count ?? 1, category: r.category, resultId: stripNs(r.result.id) };
@@ -386,9 +507,9 @@ function extractRecipe(recipeId, r, resolveRef, report) {
   if (type === 'minecraft:crafting_shapeless') {
     const ingredientsMap = new Map();
     for (const ing of r.ingredients ?? []) {
-      const { chosen } = resolveRef(ing, `${recipeId}.ingredients[]`);
-      if (!chosen) return fail(`ingredient (${JSON.stringify(ing)}) did not resolve`);
-      ingredientsMap.set(chosen, (ingredientsMap.get(chosen) ?? 0) + 1);
+      const resolved = resolveRef(ing, `${recipeId}.ingredients[]`);
+      if (!resolved.chosen) return fail(`ingredient (${JSON.stringify(ing)}) did not resolve`);
+      addIngredient(ingredientsMap, resolved.chosen, 1, resolved);
     }
     if (ingredientsMap.size === 0) return fail('no ingredients parsed');
     return { ingredientsMap, yields: r.result?.count ?? 1, category: r.category, resultId: stripNs(r.result.id) };
@@ -401,10 +522,12 @@ function extractRecipe(recipeId, r, resolveRef, report) {
     type === 'minecraft:smoking' ||
     type === 'minecraft:campfire_cooking'
   ) {
-    const { chosen } = resolveRef(r.ingredient, `${recipeId}.ingredient`);
-    if (!chosen) return fail(`ingredient (${JSON.stringify(r.ingredient)}) did not resolve`);
+    const resolved = resolveRef(r.ingredient, `${recipeId}.ingredient`);
+    if (!resolved.chosen) return fail(`ingredient (${JSON.stringify(r.ingredient)}) did not resolve`);
+    const ingredientsMap = new Map();
+    addIngredient(ingredientsMap, resolved.chosen, 1, resolved);
     return {
-      ingredientsMap: new Map([[chosen, 1]]),
+      ingredientsMap,
       yields: r.result?.count ?? 1,
       category: r.category,
       resultId: stripNs(r.result.id),
@@ -418,9 +541,9 @@ function extractRecipe(recipeId, r, resolveRef, report) {
       ['addition', r.addition],
       ['template', r.template],
     ]) {
-      const { chosen } = resolveRef(ref, `${recipeId}.${field}`);
-      if (!chosen) return fail(`${field} (${JSON.stringify(ref)}) did not resolve`);
-      ingredientsMap.set(chosen, (ingredientsMap.get(chosen) ?? 0) + 1);
+      const resolved = resolveRef(ref, `${recipeId}.${field}`);
+      if (!resolved.chosen) return fail(`${field} (${JSON.stringify(ref)}) did not resolve`);
+      addIngredient(ingredientsMap, resolved.chosen, 1, resolved);
     }
     return { ingredientsMap, yields: 1, category: undefined, resultId: stripNs(r.result.id) };
   }
@@ -429,14 +552,14 @@ function extractRecipe(recipeId, r, resolveRef, report) {
     const ingredientsMap = new Map();
     const input = resolveRef(r.input, `${recipeId}.input`);
     if (!input.chosen) return fail(`input (${JSON.stringify(r.input)}) did not resolve`);
-    ingredientsMap.set(input.chosen, (ingredientsMap.get(input.chosen) ?? 0) + 1);
+    addIngredient(ingredientsMap, input.chosen, 1, input);
     const material = resolveRef(r.material, `${recipeId}.material`);
     if (!material.chosen) return fail(`material (${JSON.stringify(r.material)}) did not resolve`);
     // material_count is a {min,max} RANGE on exactly one recipe (map_cloning,
     // "add up to 8 empty maps") — our static schema has no room for a range,
     // so it collapses to the minimum (a documented simplification, not a bug).
     const materialQty = r.material_count?.min ?? 1;
-    ingredientsMap.set(material.chosen, (ingredientsMap.get(material.chosen) ?? 0) + materialQty);
+    addIngredient(ingredientsMap, material.chosen, materialQty, material);
     return { ingredientsMap, yields: r.result?.count ?? 1, category: r.category, resultId: stripNs(r.result.id) };
   }
 
@@ -444,10 +567,10 @@ function extractRecipe(recipeId, r, resolveRef, report) {
     const ingredientsMap = new Map();
     const dye = resolveRef(r.dye, `${recipeId}.dye`);
     if (!dye.chosen) return fail(`dye (${JSON.stringify(r.dye)}) did not resolve`);
-    ingredientsMap.set(dye.chosen, (ingredientsMap.get(dye.chosen) ?? 0) + 1);
+    addIngredient(ingredientsMap, dye.chosen, 1, dye);
     const target = resolveRef(r.target, `${recipeId}.target`);
     if (!target.chosen) return fail(`target (${JSON.stringify(r.target)}) did not resolve`);
-    ingredientsMap.set(target.chosen, (ingredientsMap.get(target.chosen) ?? 0) + 1);
+    addIngredient(ingredientsMap, target.chosen, 1, target);
     return { ingredientsMap, yields: 1, category: undefined, resultId: stripNs(r.result.id) };
   }
 
@@ -470,8 +593,8 @@ function extractRecipe(recipeId, r, resolveRef, report) {
     const inputId = stripNs(r.input.item);
     const reagentId = stripNs(r.reagent.item);
     const ingredientsMap = new Map();
-    ingredientsMap.set(inputId, (ingredientsMap.get(inputId) ?? 0) + 1);
-    ingredientsMap.set(reagentId, (ingredientsMap.get(reagentId) ?? 0) + 1);
+    addIngredient(ingredientsMap, inputId, 1, null); // never a tag/array -> never anyOf
+    addIngredient(ingredientsMap, reagentId, 1, null);
     return { ingredientsMap, yields: 1, category: undefined, resultId: stripNs(r.output.id) };
   }
 
@@ -496,7 +619,7 @@ function computeRawCost(itemId, candidatesByResult, memo, visiting) {
   let best = Infinity;
   for (const cand of candidates) {
     let cost = 0;
-    for (const [ingId, qty] of cand.ingredientsMap) {
+    for (const [ingId, { qty }] of cand.ingredientsMap) {
       cost += qty * computeRawCost(ingId, candidatesByResult, memo, visiting);
     }
     if (cost < best) best = cost;
@@ -584,7 +707,9 @@ async function main() {
     `${Object.keys(langDoc).length} lang keys, ${registriesDoc.item.length} registered items`);
 
   const registryOrder = registriesDoc.item; // authoritative item list + its own order
-  const { resolveRef } = makeResolver(tagsDoc, registryOrder, report);
+  // resolveName is declared further down but hoisted (function declaration) —
+  // available here already, and langDoc it closes over is populated by now.
+  const { resolveRef } = makeResolver(tagsDoc, registryOrder, report, resolveName);
 
   // --- Group kept recipes by result item, skipping code-driven types --------
   const typeCounts = {};
@@ -640,7 +765,7 @@ async function main() {
     }
     const costs = candidates.map((cand) => {
       let total = 0;
-      for (const [ingId, qty] of cand.ingredientsMap) {
+      for (const [ingId, { qty }] of cand.ingredientsMap) {
         total += qty * computeRawCost(ingId, candidatesByResult, memo, new Set([resultId]));
       }
       return total;
@@ -681,7 +806,20 @@ async function main() {
       entry.recipe = {
         stations: [primary.stationId],
         yields: primary.yields ?? 1,
-        ingredients: [...primary.ingredientsMap].map(([item, qty]) => ({ item, qty })),
+        // schema v3 axis 1 (PLAN.md §1 decision 3): `item` stays the sole
+        // authoritative representative — tree.js/plan.js math is untouched —
+        // `anyOf`/`anyOfLabel` are purely additive UI truth about
+        // substitutability, only present when the slot had 2+ real
+        // candidates. No schemaVersion bump: the fields are optional and
+        // every existing consumer keeps working unchanged.
+        ingredients: [...primary.ingredientsMap].map(([item, info]) => {
+          const out = { item, qty: info.qty };
+          if (info.anyOf && info.anyOf.length > 1) {
+            out.anyOf = info.anyOf;
+            if (info.anyOfLabel) out.anyOfLabel = info.anyOfLabel;
+          }
+          return out;
+        }),
       };
       craftableCount++;
     }
@@ -695,11 +833,19 @@ async function main() {
   // reference is visible instead of surfacing later as a validate-data.mjs
   // failure with no context.
   const unknownIngredientRefs = [];
+  const unknownAnyOfRefs = [];
   for (const [id, item] of Object.entries(finalItems)) {
     if (!item.recipe) continue;
     for (const ing of item.recipe.ingredients) {
       if (!(ing.item in finalItems)) unknownIngredientRefs.push({ item: id, ingredient: ing.item });
+      for (const alt of ing.anyOf ?? []) {
+        if (!(alt in finalItems)) unknownAnyOfRefs.push({ item: id, ingredient: ing.item, anyOfMember: alt });
+      }
     }
+  }
+  if (unknownAnyOfRefs.length > 0) {
+    report.unknownAnyOfRefs = unknownAnyOfRefs;
+    log(`fetch-minecraft: WARNING ${unknownAnyOfRefs.length} anyOf member(s) fall outside the item registry — see report.unknownAnyOfRefs`);
   }
   if (unknownIngredientRefs.length > 0) {
     report.unknownIngredientRefs = unknownIngredientRefs;
@@ -717,42 +863,176 @@ async function main() {
     finalStations[stationId] = { name }; // icon attached below; no `progression` (Minecraft has no such concept)
   }
 
-  // --- Icon downloads (subject to --limit) -----------------------------------
+  // --- Icon resolution: cache-independent & idempotent ------------------------
+  // FIXED 2026-07-28 after a real regression: in a worktree with a COLD
+  // scripts/.cache/ (gitignored — every fresh worktree starts this way) but a
+  // FULLY-POPULATED public/games/minecraft/icons/ (1,182 files already on
+  // disk from a prior scrape), a --limit run collapsed items-with-an-icon
+  // from 1,182 to 11. Root cause: the old single-pass loop called
+  // attachIcon() (which DOES check the filesystem first) but then did
+  // `if (limitReached) break;` — so the INSTANT the network-fetch cap was
+  // hit on any one item, every item after it in registryOrder was skipped
+  // entirely, INCLUDING ones whose icon file already sat on disk and needed
+  // zero network to attach. `npm run validate` didn't catch it because the
+  // `optional` icon flag (added for a genuinely small ~428-item set) just
+  // counted the extra 1,171 as "legitimately absent" with no ceiling.
+  //
+  // Two passes now, deliberately decoupled:
+  //
+  //   Pass 1 (filesystem only, NEVER subject to --limit, always runs to
+  //   completion over the WHOLE registry): any id whose icon file already
+  //   exists under public/ is attached here, unconditionally. A re-run with
+  //   a cold scripts/.cache/ but a fully-populated public/ reproduces the
+  //   exact same icon coverage as any prior run, downloading nothing.
+  //
+  //   Pass 2 (network, subject to --limit): only ids Pass 1 left
+  //   unresolved. Checked against a persisted NEGATIVE-result cache
+  //   (NO_ICON_CACHE_FILE) first — an id CONFIRMED missing in a prior run
+  //   that was allowed to fully try it (all 5 tiers, not cut short by
+  //   --limit) is never re-attempted, which is what makes a second full run
+  //   fast and network-free too. An id merely UNREACHED because --limit cut
+  //   the run short is NOT written to that cache (its real status is
+  //   unknown) and is NOT counted as confirmed-missing — see
+  //   `iconsUnattempted` below, kept separate from `iconsMissing`.
   let iconsWritten = 0;
-  let iconsPresent = 0;
-  let iconsMissing = 0;
+  let iconsPresent = 0; // Pass 1: resolved from an existing file on disk
+  let iconsMissing = 0; // Pass 2: CONFIRMED no representative texture (all tiers tried)
+  let iconsUnattempted = 0; // Pass 2: never tried this run — --limit cut it short
   const tierCounts = {};
 
-  async function attachIcon(id, entry) {
+  const noIconCache = existsSync(NO_ICON_CACHE_FILE)
+    ? new Set(JSON.parse(readFileSync(NO_ICON_CACHE_FILE, 'utf8')))
+    : new Set();
+  const confirmedMissingThisRun = new Set(); // merged into the persisted cache at the end
+
+  function attachFromDisk(id, entry) {
     const publicPath = path.join(PUBLIC_ICONS_DIR, `${id}.png`);
-    if (existsSync(publicPath)) {
-      entry.icon = `icons/${id}.png`;
-      iconsPresent++;
-      return;
-    }
-    const result = await resolveIconBytes(id, report);
-    if (!result) {
+    if (!existsSync(publicPath)) return false;
+    entry.icon = `icons/${id}.png`;
+    iconsPresent++;
+    return true;
+  }
+
+  async function attachFromNetwork(id, entry) {
+    if (noIconCache.has(id)) {
+      // Confirmed missing in a prior full run — no need to hit the network
+      // again, and doesn't count against --limit at all.
       iconsMissing++;
       report.itemsNoIcon.push(id);
       return;
     }
-    writeFileSync(publicPath, result.bytes);
-    entry.icon = `icons/${id}.png`;
-    iconsWritten++;
-    tierCounts[result.tier] = (tierCounts[result.tier] ?? 0) + 1;
+    const result = await resolveIconBytes(id, report);
+    if (result) {
+      writeFileSync(path.join(PUBLIC_ICONS_DIR, `${id}.png`), result.bytes);
+      entry.icon = `icons/${id}.png`;
+      iconsWritten++;
+      tierCounts[result.tier] = (tierCounts[result.tier] ?? 0) + 1;
+      return;
+    }
+    // null can mean two different things: genuinely exhausted all 5 tiers
+    // (a real, confirmable miss), or cut short mid-attempt because --limit
+    // was hit on THIS call or an earlier one (limitReached is now true when
+    // it wasn't before, or already was). Only the former is trustworthy
+    // enough to persist as a negative result.
+    if (limitReached) {
+      iconsUnattempted++;
+      return;
+    }
+    iconsMissing++;
+    report.itemsNoIcon.push(id);
+    confirmedMissingThisRun.add(id);
   }
 
   log(`fetch-minecraft: resolving icons for ${registryOrder.length} items + ${STATION_IDS.length} stations...`);
-  let processed = 0;
+
+  // Pass 1: filesystem only, whole registry, unconditionally.
+  const unresolvedItems = [];
   for (const id of registryOrder) {
-    await attachIcon(id, finalItems[id]);
-    processed++;
-    if (processed % 200 === 0) vlog(`  ...${processed}/${registryOrder.length} items processed`);
-    if (limitReached) break;
+    if (!attachFromDisk(id, finalItems[id])) unresolvedItems.push(id);
   }
+  const unresolvedStations = [];
   for (const stationId of STATION_IDS) {
-    if (limitReached) break;
-    await attachIcon(stationId, finalStations[stationId]);
+    if (!attachFromDisk(stationId, finalStations[stationId])) unresolvedStations.push(stationId);
+  }
+  vlog(
+    `  pass 1 (filesystem): ${iconsPresent} already on disk, ${unresolvedItems.length + unresolvedStations.length} still unresolved`,
+  );
+
+  // Pass 2: network, subject to --limit, only over what Pass 1 couldn't
+  // resolve. Items before stations, matching the original priority.
+  let processed = 0;
+  for (const id of unresolvedItems) {
+    await attachFromNetwork(id, finalItems[id]);
+    processed++;
+    if (processed % 200 === 0) vlog(`  ...${processed}/${unresolvedItems.length} unresolved items processed`);
+  }
+  for (const stationId of unresolvedStations) {
+    await attachFromNetwork(stationId, finalStations[stationId]);
+  }
+
+  // Persist newly-confirmed misses so a FUTURE full run doesn't re-attempt
+  // known-dead URLs. Never removes an id (upstream textures don't come back
+  // by themselves; if one ever does, deleting scripts/.cache/minecraft/no-icon.json
+  // forces a full recheck).
+  if (confirmedMissingThisRun.size > 0) {
+    for (const id of confirmedMissingThisRun) noIconCache.add(id);
+    writeFileSync(NO_ICON_CACHE_FILE, JSON.stringify([...noIconCache].sort(), null, 2) + '\n', 'utf8');
+  }
+
+  // --- Icon-coverage tripwire --------------------------------------------------
+  // Real value observed 2026-07-28 after the fix above: 1,182/1,610 items and
+  // 8/8 stations resolve an icon (the rest are the documented ~27% with no
+  // representative texture at all — buttons/fences/slabs/stairs/etc. that
+  // reuse their parent material via a model, plus entity-rendered blocks).
+  // Only asserted when this run had a genuine opportunity to observe the
+  // WHOLE registry — i.e. Pass 2 was never cut short by --limit — exactly
+  // like fetch-pals.mjs's MIN_HABITATS_TRIPWIRE. A deliberately partial
+  // --limit run is not a signal that upstream's texture set collapsed.
+  const iconFloorApplies = !limitReached;
+  if (iconFloorApplies && iconsPresent + iconsWritten < MIN_ICON_COUNT) {
+    throw new Error(
+      `HARD ERROR: only ${iconsPresent + iconsWritten} items/stations resolved an icon, expected at least ` +
+        `${MIN_ICON_COUNT} (${(MIN_ICON_COUNT / EXPECTED_ICON_COUNT) * 100}% of the ${EXPECTED_ICON_COUNT} observed ` +
+        `2026-07-28) — a full (non-'--limit'-cut) run should never collapse this far below the known-good count. ` +
+        `If public/games/minecraft/icons/ was deleted or scripts/.cache/minecraft/no-icon.json is stale/wrong, ` +
+        `fix that; do not raise this floor to silence a real regression.`,
+    );
+  }
+  // Stations get a STRICT floor (all 8, no headroom) — unlike items, every
+  // station has always resolved an icon; any drop at all is worth a hard
+  // stop, not a percentage-based tolerance.
+  if (iconFloorApplies) {
+    const resolvedStationIcons = STATION_IDS.filter((id) => finalStations[id].icon).length;
+    if (resolvedStationIcons < STATION_IDS.length) {
+      throw new Error(
+        `HARD ERROR: only ${resolvedStationIcons}/${STATION_IDS.length} stations resolved an icon (expected all ` +
+          `${STATION_IDS.length} — every station has always had one) — see report.itemsNoIcon for which.`,
+      );
+    }
+  }
+
+  // --- schema v3 axis 1 stats: walk the FINAL shipped ingredients (not the
+  // intermediate resolutions log) so this counts exactly what ships. ---------
+  let anyOfIngredientCount = 0;
+  let anyOfRecipeCount = 0;
+  let anyOfNoLabelCount = 0;
+  const setSizeBuckets = { '2': 0, '3-9': 0, '10+': 0 };
+  let maxAnyOfSize = 0;
+  for (const item of Object.values(finalItems)) {
+    if (!item.recipe) continue;
+    let recipeHasAnyOf = false;
+    for (const ing of item.recipe.ingredients) {
+      if (!ing.anyOf) continue;
+      anyOfIngredientCount++;
+      recipeHasAnyOf = true;
+      if (!ing.anyOfLabel) anyOfNoLabelCount++;
+      const size = ing.anyOf.length;
+      if (size > maxAnyOfSize) maxAnyOfSize = size;
+      if (size === 2) setSizeBuckets['2']++;
+      else if (size <= 9) setSizeBuckets['3-9']++;
+      else setSizeBuckets['10+']++;
+    }
+    if (recipeHasAnyOf) anyOfRecipeCount++;
   }
 
   // --- Write outputs -----------------------------------------------------------
@@ -773,11 +1053,24 @@ async function main() {
     craftable: craftableCount,
     raw: registryOrder.length - craftableCount,
     stations: STATION_IDS.length,
-    icons: { written: iconsWritten, present: iconsPresent, missing: iconsMissing, byFallbackTier: tierCounts },
+    icons: {
+      written: iconsWritten,
+      present: iconsPresent,
+      missing: iconsMissing,
+      unattempted: iconsUnattempted,
+      byFallbackTier: tierCounts,
+    },
     namesFallenBack: report.itemsNoName.length,
     multiMemberResolutions: report.multiMemberResolutions.length,
     droppedAlternateRecipes: report.droppedAlternateRecipes.length,
     unresolvedRecipes: report.unresolvedRecipes.length,
+    anyOf: {
+      ingredientsWithAnyOf: anyOfIngredientCount,
+      recipesWithAnyOf: anyOfRecipeCount,
+      setSizeDistribution: setSizeBuckets,
+      maxSetSize: maxAnyOfSize,
+      lackingLabel: anyOfNoLabelCount,
+    },
   };
   writeFileSync(REPORT_OUT, JSON.stringify(report, null, 2) + '\n', 'utf8');
 
@@ -786,12 +1079,17 @@ async function main() {
   log(`  recipes: ${recipeCount} total, ${keptRecipeCount} kept, ${JSON.stringify(skippedTypeCounts)} skipped`);
   log(`  items: ${registryOrder.length} (craftable ${craftableCount}, raw ${registryOrder.length - craftableCount})`);
   log(`  stations: ${STATION_IDS.length}`);
-  log(`  icons: ${iconsWritten} written, ${iconsPresent} already present, ${iconsMissing} missing (fallback tiers used: ${JSON.stringify(tierCounts)})`);
+  log(`  icons: ${iconsWritten} written, ${iconsPresent} already present, ${iconsMissing} confirmed missing, ${iconsUnattempted} unattempted (--limit) (fallback tiers used: ${JSON.stringify(tierCounts)})`);
   log(`  names fallen back to title-case: ${report.itemsNoName.length}`);
   log(`  multi-member tag/array resolutions: ${report.multiMemberResolutions.length}`);
   log(`  dropped alternate recipes (multi-recipe items): ${report.droppedAlternateRecipes.length}`);
   log(`  unresolved/unparseable recipes: ${report.unresolvedRecipes.length}`);
   log(`  tag cycles encountered: ${report.tagCycles.length}, unknown tags referenced: ${report.unknownTags.length}`);
+  log(
+    `  anyOf: ${anyOfIngredientCount} ingredient(s) across ${anyOfRecipeCount} recipe(s) gained anyOf ` +
+      `(set sizes: 2=${setSizeBuckets['2']}, 3-9=${setSizeBuckets['3-9']}, 10+=${setSizeBuckets['10+']}, max=${maxAnyOfSize}), ` +
+      `${anyOfNoLabelCount} lacked a label (bare alternatives array, no tag name)`,
+  );
   if (limitReached) log('  --limit reached; run again to continue (icons only).');
   log(`  report written to ${REPORT_OUT}`);
 

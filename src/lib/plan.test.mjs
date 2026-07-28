@@ -203,6 +203,61 @@ describe('craftPlan', () => {
   });
 });
 
+describe('craftPlan/aggregateRequirements: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)', () => {
+  test('REGRESSION GUARD (decision 1): craftPlan/aggregateRequirements are byte-identical whether or not ingredients carry anyOf', () => {
+    // plan.js never reads .anyOf/.anyOfLabel at all — it only ever reads
+    // .item/.qty off a recipe's ingredients — so their presence must have
+    // ZERO effect on steps, raw totals, ordering, or crafts/yields.
+    const withAnyOf = {
+      campfire: {
+        recipe: {
+          stations: ['crafting_table'],
+          yields: 1,
+          ingredients: [
+            { item: 'stick', qty: 3 },
+            { item: 'charcoal', qty: 1, anyOf: ['charcoal', 'coal'], anyOfLabel: 'Coals' },
+            { item: 'acacia_log', qty: 3, anyOf: ['acacia_log', 'oak_log', 'spruce_log'], anyOfLabel: 'Log' },
+          ],
+        },
+      },
+      charcoal: {
+        recipe: {
+          stations: ['furnace'],
+          yields: 1,
+          ingredients: [{ item: 'acacia_log', qty: 1, anyOf: ['acacia_log', 'oak_log'], anyOfLabel: 'Log' }],
+        },
+      },
+      stick: {},
+      acacia_log: {},
+    };
+    const withoutAnyOf = {
+      campfire: {
+        recipe: {
+          stations: ['crafting_table'],
+          yields: 1,
+          ingredients: [
+            { item: 'stick', qty: 3 },
+            { item: 'charcoal', qty: 1 },
+            { item: 'acacia_log', qty: 3 },
+          ],
+        },
+      },
+      charcoal: {
+        recipe: { stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] },
+      },
+      stick: {},
+      acacia_log: {},
+    };
+
+    const targets = [{ itemId: 'campfire', qty: 4 }];
+    assert.deepEqual(craftPlan(withAnyOf, targets), craftPlan(withoutAnyOf, targets));
+    assert.deepEqual(
+      [...aggregateRequirements(withAnyOf, targets).entries()],
+      [...aggregateRequirements(withoutAnyOf, targets).entries()],
+    );
+  });
+});
+
 describe('real data: Advanced Arrow (the user\'s own example)', () => {
   const dataPath = path.join(__dirname, '..', 'data', 'palworld', 'items.json');
   const { items } = JSON.parse(readFileSync(dataPath, 'utf8'));

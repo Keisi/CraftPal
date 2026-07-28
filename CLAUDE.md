@@ -139,13 +139,35 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
     Minecraft has no tiers (`tiers: []`), no progression, and no map datasets
     (`datasets: []`), and correctly shows no tier chips, only Name/Category
     sorts, and no Map tab. That is the §9 contract — keep it true.
-- **Known schema limit — no "any of a set" ingredient.** A recipe stores one
-  concrete ingredient id, so a Minecraft recipe keyed on a multi-member tag
-  (`#minecraft:logs` has 48 members) collapses to a single representative and the
-  tree reads "Campfire needs Oak Log ×3" when the truth is "any log". 93 recipes
-  are affected. The scraper logs every dropped alternate (PLAN.md §1), but a
-  truthful fix needs an optional `anyOf` on an ingredient plus UI support
-  (schema v3). Don't mistake the representative for the whole answer.
+- **`anyOf` ingredients — `item` is ALWAYS the authoritative representative.**
+  A recipe slot can accept many items (Minecraft keys ingredients on tags;
+  `#minecraft:logs` has 48 members), so an ingredient may carry an optional
+  `anyOf: [ids]` + `anyOfLabel`. Load-bearing rules:
+  - **`item` still drives every computation.** `tree.js` expansion, `plan.js`
+    quantities, the raw-materials summary and the tasks list all follow `item`
+    and must produce byte-identical numbers whether or not `anyOf` is present
+    (there are tests asserting exactly that — don't weaken them). `anyOf` is
+    *display* information about substitutability, nothing more.
+  - **`anyOf` must contain its own `item`**, must have length ≥ 2, and every id
+    must resolve — all hard errors in `validate-data.mjs`. The
+    contains-its-own-item rule is what keeps the maths honest: if the
+    representative drifted out of its own option set, the tree would be costing
+    something the data no longer offers.
+  - **Never expand an `anyOf` set into tree children.** 48 options would make a
+    campfire's tree unusable and would break the path-keyed collapse state. The
+    option list is in-node disclosure (`AnyOfChip`), not tree structure.
+  - Absent beats empty: a slot with no choice carries **no** `anyOf`, never a
+    1-element one.
+  - **No `schemaVersion` bump** — the field is additive and optional, so every
+    existing consumer keeps working. The bump is reserved for the genuinely
+    breaking half of this idea (below).
+- **Still-open schema limit — one recipe per item.** An item with several
+  complete recipes stores only the cheapest-in-raw-resources one and the scraper
+  logs the alternates (PLAN.md §1): Palworld drops 15 (e.g. Carbon Fiber keeps
+  `2× Coal + 1× Flame Organ`, drops `5× Charcoal + 1× Flame Organ`), Minecraft
+  drops 859. Fixing it means `recipe` → `recipes[]`, which IS breaking and does
+  need the `schemaVersion` bump. Don't confuse this with `anyOf` above: that is
+  choice *within* a slot, this is choice *between whole recipes*.
 - **Verify:** `npm run build`, `npm test`, and `npm run validate` must pass
   before any commit.
 - **Pages ordering gotcha:** if the repo is ever recreated, enable Pages

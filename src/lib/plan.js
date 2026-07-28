@@ -10,6 +10,21 @@
 // ordered, dependency-safe list of craft steps plus a raw-materials shopping
 // list — the "1. craft 5x Carbon Fiber, 2. craft 2x Plasteel" the user asked
 // for.
+//
+// schema v3 axis 1 ("any of a set" ingredients, PLAN.md §1 decision 3):
+// deliberately NOT surfaced here. `anyOf`/`anyOfLabel` live on one ingredient
+// SLOT — one parent's specific use of one child — but both `steps` and `raw`
+// aggregate a single itemId's qty across the WHOLE task list, merging every
+// slot that ever needed it. The same raw material can be reached through two
+// different anyOf sets in one plan (e.g. a Campfire's direct log slot pulls
+// from the 48-member `logs` tag, while its Charcoal ingredient's own log slot
+// pulls from the 40-member `logs_that_burn` tag — both currently resolve to
+// the same representative id) — there is no single honest anyOf to attach to
+// the merged total without misrepresenting one of those sets as the other.
+// buildTree()/tree.js keep anyOf at the per-occurrence node level, where it's
+// unambiguous; aggregateRequirements()/craftPlan() only ever read `.item`/
+// `.qty` off a recipe's ingredients, so `anyOf`'s presence has zero effect on
+// any number here (see plan.test.mjs's regression guard).
 
 import { buildTree } from './tree.js';
 
