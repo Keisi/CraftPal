@@ -41,19 +41,19 @@ const FIXTURE_MANIFEST = {
 };
 
 // A handful of items: two craftable, two raw. No `tier`, no `progression`,
-// no `recipe.stations` (empty array — "no crafting station" concept), no
+// no `recipes[].stations` (empty array — "no crafting station" concept), no
 // `variantGroup`.
 function fixtureItems() {
   return {
     plank: {
       name: 'Plank',
       category: 'material',
-      recipe: { stations: [], yields: 4, ingredients: [{ item: 'log', qty: 1 }] },
+      recipes: [{ stations: [], yields: 4, ingredients: [{ item: 'log', qty: 1 }] }],
     },
     stick: {
       name: 'Stick',
       category: 'material',
-      recipe: { stations: [], yields: 2, ingredients: [{ item: 'plank', qty: 1 }] },
+      recipes: [{ stations: [], yields: 2, ingredients: [{ item: 'plank', qty: 1 }] }],
     },
     log: { name: 'Log', category: 'raw' },
     pebble: { name: 'Pebble', category: 'raw' },

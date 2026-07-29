@@ -28,7 +28,7 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
     strings — data must not be able to inject classes, and Tailwind cannot see
     dynamically-built class names. `src/lib/tier.js` maps token → classes.
   - **Game-neutral field names:** `tier` (not rarity), `progression` (not
-    techLevel), `variantGroup` (not family). `items.json` is `schemaVersion: 2`.
+    techLevel), `variantGroup` (not family). `items.json` is `schemaVersion: 3`.
     The *labels* still read "rarity"/"Tech level" — that's the manifest's job.
   - **Game selection is `VITE_GAME`** (default `palworld`), resolved in
     `src/lib/data.js`. That module is imported in **exactly one place**
@@ -39,8 +39,14 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
     progression / stations must render with those controls *absent*, not empty
     (`derive*` in `src/lib/filter.js`).
 - **Data:** load-bearing rules (schema in PLAN.md §1):
-  - Raw material = **no `recipe` key** (that's the leaf test everywhere).
-  - `recipe.stations` is always an **array** (recipes accept multiple station tiers).
+  - Raw material = **no `recipes` key** (that's the leaf test everywhere —
+    `!item.recipes?.length`). Absent beats empty: a present-but-empty array is
+    a hard error in `validate-data.mjs`, not a legal "no recipe" spelling.
+  - `item.recipes` is an **array** of complete recipes (schema v3 — see the
+    "`item.recipes`" bullet below), sorted cheapest-first; each recipe's own
+    `stations` is always an **array** (a recipe accepts multiple station tiers,
+    and different recipes of the same item may list entirely different
+    stations, e.g. Minecraft's crafting-table-vs-stonecutter alternates).
   - Tiers of one weapon are **separate items** with their own recipes, linked by
     a shared `variantGroup` id.
   - Ids are stable kebab-case derived from paldb.cc internal codes — never key
@@ -161,13 +167,38 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
   - **No `schemaVersion` bump** — the field is additive and optional, so every
     existing consumer keeps working. The bump is reserved for the genuinely
     breaking half of this idea (below).
-- **Still-open schema limit — one recipe per item.** An item with several
-  complete recipes stores only the cheapest-in-raw-resources one and the scraper
-  logs the alternates (PLAN.md §1): Palworld drops 15 (e.g. Carbon Fiber keeps
-  `2× Coal + 1× Flame Organ`, drops `5× Charcoal + 1× Flame Organ`), Minecraft
-  drops 859. Fixing it means `recipe` → `recipes[]`, which IS breaking and does
-  need the `schemaVersion` bump. Don't confuse this with `anyOf` above: that is
-  choice *within* a slot, this is choice *between whole recipes*.
+- **`item.recipes` — an ARRAY, not a single `recipe` (schema v3, breaking).**
+  Fixed the "one recipe per item" limit: an item with several complete
+  recipes now keeps EVERY one (`recipes[]`, sorted cheapest-in-raw-resources
+  first) instead of silently discarding all but the primary. `recipes[0]` is
+  the primary and every consumer that doesn't care about alternates just
+  reads it (`plan.js`'s task list, `wholeBatches()`, `TasksView` — none of
+  these have a per-node concept). Load-bearing rules:
+  - **The leaf test is `!item.recipes?.length`,** never `!item.recipe` —
+    absent beats empty (a raw material omits `recipes` entirely;
+    `validate-data.mjs` hard-errors on a present-but-empty array, and on any
+    item still carrying the old singular `recipe` key — clean break, no
+    back-compat).
+  - **The tree's per-node recipe switcher (`RecipeSwitcher.jsx`) is keyed by
+    node PATH** (`tree.js`'s `recipeChoices: Map<path, recipeIndex>`, threaded
+    through `buildTree()` alongside the existing `visited` cycle guard) —
+    exactly like collapse state, never by itemId, since the same item can sit
+    at several tree positions and each must switch independently. `buildTree`
+    resolves `recipes[recipeChoices.get(path) ?? 0]` (clamped, falls back to
+    the primary on a stale/out-of-range choice) and stores the node's actual
+    `yields` (not re-derived from `item.recipes[0]` — that would go stale the
+    instant a switch happens away from the primary).
+  - **No switcher renders for a 1-recipe item** — same "no dead controls"
+    rule as tiers/progression/the variant switcher.
+  - Don't confuse this with `anyOf` above: that is choice *within* one
+    ingredient slot (48 logs, one representative), this is choice *between
+    whole recipes* (different ingredient lists/stations/yields entirely).
+    Both can appear on the same item at once (e.g. a Minecraft recipe with an
+    `anyOf` ingredient, on an item that also has a stonecutter alternate).
+  - Real counts (2026-07-29 regeneration): Palworld 4 items gained alternates
+    (paldium_fragment: 1 → 13; carbon_fiber, large_pal_soul, medium_pal_soul:
+    1 → 2 each), Minecraft 364 (e.g. `cobblestone_slab`: crafting-table recipe
+    + 2 stonecutter recipes, each with its own station/yields).
 - **Verify:** `npm run build`, `npm test`, and `npm run validate` must pass
   before any commit.
 - **Pages ordering gotcha:** if the repo is ever recreated, enable Pages

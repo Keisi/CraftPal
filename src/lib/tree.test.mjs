@@ -9,7 +9,7 @@ import { buildTree, aggregateRaw, collapsiblePaths, childPath, ROOT_PATH } from 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('buildTree', () => {
-  test('raw material (no recipe) produces a leaf node', () => {
+  test('raw material (no recipes) produces a leaf node', () => {
     const items = {
       wood: { name: 'Wood' },
     };
@@ -19,24 +19,36 @@ describe('buildTree', () => {
       qty: 5,
       crafts: 0,
       stations: null,
+      yields: null,
       children: [],
     });
+  });
+
+  test('a present-but-empty recipes array is treated as a leaf (defensive — validate-data.mjs hard-errors on this, never trusted blindly)', () => {
+    const items = { ghost_recipe: { recipes: [] } };
+    const node = buildTree(items, 'ghost_recipe', 3);
+    assert.equal(node.crafts, 0);
+    assert.equal(node.stations, null);
+    assert.deepEqual(node.children, []);
   });
 
   test('single-level recipe computes crafts and scaled ingredient qty', () => {
     const items = {
       widget: {
-        recipe: {
-          stations: ['bench'],
-          yields: 1,
-          ingredients: [{ item: 'ore', qty: 3 }],
-        },
+        recipes: [
+          {
+            stations: ['bench'],
+            yields: 1,
+            ingredients: [{ item: 'ore', qty: 3 }],
+          },
+        ],
       },
       ore: {},
     };
     const node = buildTree(items, 'widget', 2);
     assert.equal(node.crafts, 2);
     assert.deepEqual(node.stations, ['bench']);
+    assert.equal(node.yields, 1);
     assert.equal(node.children.length, 1);
     assert.equal(node.children[0].itemId, 'ore');
     assert.equal(node.children[0].qty, 6); // 3 * 2 crafts
@@ -48,34 +60,41 @@ describe('buildTree', () => {
   test('yields > 1: recipe yields 3, need 4 -> crafts = 2, ingredients scale by crafts', () => {
     const items = {
       batch_item: {
-        recipe: {
-          stations: ['bench'],
-          yields: 3,
-          ingredients: [{ item: 'raw', qty: 5 }],
-        },
+        recipes: [
+          {
+            stations: ['bench'],
+            yields: 3,
+            ingredients: [{ item: 'raw', qty: 5 }],
+          },
+        ],
       },
       raw: {},
     };
     const node = buildTree(items, 'batch_item', 4);
     assert.equal(node.crafts, 2); // ceil(4/3) = 2
+    assert.equal(node.yields, 3);
     assert.equal(node.children[0].qty, 10); // 5 * 2
   });
 
   test('multi-level nesting multiplies quantities correctly down the chain', () => {
     const items = {
       top: {
-        recipe: {
-          stations: ['s1'],
-          yields: 1,
-          ingredients: [{ item: 'mid', qty: 2 }],
-        },
+        recipes: [
+          {
+            stations: ['s1'],
+            yields: 1,
+            ingredients: [{ item: 'mid', qty: 2 }],
+          },
+        ],
       },
       mid: {
-        recipe: {
-          stations: ['s2'],
-          yields: 1,
-          ingredients: [{ item: 'bottom', qty: 3 }],
-        },
+        recipes: [
+          {
+            stations: ['s2'],
+            yields: 1,
+            ingredients: [{ item: 'bottom', qty: 3 }],
+          },
+        ],
       },
       bottom: {},
     };
@@ -93,18 +112,22 @@ describe('buildTree', () => {
   test('cycle in data terminates and the cycle node becomes a leaf', () => {
     const items = {
       a: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'b', qty: 1 }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'b', qty: 1 }],
+          },
+        ],
       },
       b: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'a', qty: 1 }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'a', qty: 1 }],
+          },
+        ],
       },
     };
     const node = buildTree(items, 'a', 1);
@@ -118,6 +141,7 @@ describe('buildTree', () => {
       qty: 1,
       crafts: 0,
       stations: null,
+      yields: null,
       children: [],
     });
   });
@@ -125,11 +149,13 @@ describe('buildTree', () => {
   test('unknown ingredient id resolves to a leaf without throwing', () => {
     const items = {
       thing: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'nonexistent', qty: 4 }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'nonexistent', qty: 4 }],
+          },
+        ],
       },
     };
     assert.doesNotThrow(() => buildTree(items, 'thing', 1));
@@ -140,6 +166,7 @@ describe('buildTree', () => {
       qty: 4,
       crafts: 0,
       stations: null,
+      yields: null,
       children: [],
     });
   });
@@ -153,6 +180,7 @@ describe('buildTree', () => {
       qty: 7,
       crafts: 0,
       stations: null,
+      yields: null,
       children: [],
     });
   });
@@ -167,22 +195,143 @@ describe('buildTree', () => {
   });
 });
 
+describe('buildTree: recipes[] (schema v3 axis 2, PLAN.md §1 decisions 1/4)', () => {
+  test('recipes[0] is used by default with no recipeChoices override', () => {
+    const items = {
+      carbon_fiber: {
+        recipes: [
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'coal', qty: 2 }, { item: 'flame_organ', qty: 1 }] },
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'charcoal', qty: 5 }, { item: 'flame_organ', qty: 1 }] },
+        ],
+      },
+      coal: {},
+      charcoal: {},
+      flame_organ: {},
+    };
+    const node = buildTree(items, 'carbon_fiber', 1);
+    assert.deepEqual(
+      node.children.map((c) => c.itemId),
+      ['coal', 'flame_organ'],
+    );
+  });
+
+  test('recipeChoices selects a non-default recipe by node path', () => {
+    const items = {
+      carbon_fiber: {
+        recipes: [
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'coal', qty: 2 }, { item: 'flame_organ', qty: 1 }] },
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'charcoal', qty: 5 }, { item: 'flame_organ', qty: 1 }] },
+        ],
+      },
+      coal: {},
+      charcoal: {},
+      flame_organ: {},
+    };
+    const recipeChoices = new Map([[ROOT_PATH, 1]]);
+    const node = buildTree(items, 'carbon_fiber', 1, new Set(), ROOT_PATH, recipeChoices);
+    assert.deepEqual(
+      node.children.map((c) => c.itemId),
+      ['charcoal', 'flame_organ'],
+    );
+  });
+
+  test('an out-of-range recipeChoices entry falls back to recipes[0] rather than throwing', () => {
+    const items = {
+      widget: {
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'ore', qty: 1 }] }],
+      },
+      ore: {},
+    };
+    const recipeChoices = new Map([[ROOT_PATH, 99]]);
+    assert.doesNotThrow(() => buildTree(items, 'widget', 1, new Set(), ROOT_PATH, recipeChoices));
+    const node = buildTree(items, 'widget', 1, new Set(), ROOT_PATH, recipeChoices);
+    assert.equal(node.children[0].itemId, 'ore');
+  });
+
+  test('two occurrences of the SAME item switch independently, keyed by path', () => {
+    // top needs 1x shared (twice, at different positions) — one branch's
+    // choice must not affect the other's.
+    const items = {
+      top: {
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [
+              { item: 'shared', qty: 1 },
+              { item: 'shared', qty: 1 },
+            ],
+          },
+        ],
+      },
+      shared: {
+        recipes: [
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] },
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'b', qty: 1 }] },
+        ],
+      },
+      a: {},
+      b: {},
+    };
+    // Switch only the SECOND occurrence (path r.1) to recipe index 1.
+    const recipeChoices = new Map([[childPath(ROOT_PATH, 1), 1]]);
+    const node = buildTree(items, 'top', 1, new Set(), ROOT_PATH, recipeChoices);
+    assert.equal(node.children[0].children[0].itemId, 'a'); // first occurrence: default recipes[0]
+    assert.equal(node.children[1].children[0].itemId, 'b'); // second occurrence: switched
+  });
+
+  test('recipe yields differ per alternate: crafts recompute for whichever recipe is active', () => {
+    const items = {
+      batch_item: {
+        recipes: [
+          { stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] },
+          { stations: ['s'], yields: 5, ingredients: [{ item: 'raw', qty: 1 }] },
+        ],
+      },
+      raw: {},
+    };
+    const defaultNode = buildTree(items, 'batch_item', 12);
+    assert.equal(defaultNode.crafts, 12); // yields 1 -> crafts == qty
+    assert.equal(defaultNode.yields, 1);
+
+    const switched = buildTree(items, 'batch_item', 12, new Set(), ROOT_PATH, new Map([[ROOT_PATH, 1]]));
+    assert.equal(switched.crafts, 3); // ceil(12/5)
+    assert.equal(switched.yields, 5);
+  });
+
+  test('REGRESSION GUARD (decision 1): a single-recipe item\'s tree is unaffected by recipeChoices/path plumbing existing at all', () => {
+    const items = {
+      widget: {
+        recipes: [{ stations: ['bench'], yields: 2, ingredients: [{ item: 'ore', qty: 3 }] }],
+      },
+      ore: {},
+    };
+    const plain = buildTree(items, 'widget', 5);
+    const withEmptyChoices = buildTree(items, 'widget', 5, new Set(), ROOT_PATH, new Map());
+    const withUnrelatedChoice = buildTree(items, 'widget', 5, new Set(), ROOT_PATH, new Map([['some.other.path', 3]]));
+    assert.deepEqual(plain, withEmptyChoices);
+    assert.deepEqual(plain, withUnrelatedChoice);
+  });
+});
+
 describe('buildTree: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)', () => {
   test('anyOf/anyOfLabel are attached to the CHILD node, not read by the parent\'s math', () => {
     const items = {
       campfire: {
-        recipe: {
-          stations: ['crafting_table'],
-          yields: 1,
-          ingredients: [
-            {
-              item: 'acacia_log',
-              qty: 3,
-              anyOf: ['acacia_log', 'oak_log', 'spruce_log'],
-              anyOfLabel: 'Log',
-            },
-          ],
-        },
+        recipes: [
+          {
+            stations: ['crafting_table'],
+            yields: 1,
+            ingredients: [
+              {
+                item: 'acacia_log',
+                qty: 3,
+                anyOf: ['acacia_log', 'oak_log', 'spruce_log'],
+                anyOfLabel: 'Log',
+              },
+            ],
+          },
+        ],
       },
       acacia_log: {},
     };
@@ -197,11 +346,13 @@ describe('buildTree: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)
   test('anyOf with no anyOfLabel: the field is simply absent on the node (not null/undefined-but-present)', () => {
     const items = {
       thing: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'a', qty: 1, anyOf: ['a', 'b'] }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'a', qty: 1, anyOf: ['a', 'b'] }],
+          },
+        ],
       },
       a: {},
     };
@@ -213,7 +364,7 @@ describe('buildTree: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)
   test('an ingredient with no anyOf produces a node with no anyOf/anyOfLabel keys at all', () => {
     const items = {
       thing: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] }],
       },
       a: {},
     };
@@ -229,40 +380,46 @@ describe('buildTree: anyOf/anyOfLabel (schema v3 axis 1, PLAN.md §1 decision 3)
     // presence — it is purely additive UI truth layered on top of `item`.
     const withAnyOf = {
       campfire: {
-        recipe: {
-          stations: ['crafting_table'],
-          yields: 1,
-          ingredients: [
-            { item: 'stick', qty: 3 },
-            { item: 'charcoal', qty: 1, anyOf: ['charcoal', 'coal'], anyOfLabel: 'Coals' },
-            { item: 'acacia_log', qty: 3, anyOf: ['acacia_log', 'oak_log', 'spruce_log'], anyOfLabel: 'Log' },
-          ],
-        },
+        recipes: [
+          {
+            stations: ['crafting_table'],
+            yields: 1,
+            ingredients: [
+              { item: 'stick', qty: 3 },
+              { item: 'charcoal', qty: 1, anyOf: ['charcoal', 'coal'], anyOfLabel: 'Coals' },
+              { item: 'acacia_log', qty: 3, anyOf: ['acacia_log', 'oak_log', 'spruce_log'], anyOfLabel: 'Log' },
+            ],
+          },
+        ],
       },
       charcoal: {
-        recipe: {
-          stations: ['furnace'],
-          yields: 1,
-          ingredients: [{ item: 'acacia_log', qty: 1, anyOf: ['acacia_log', 'oak_log'], anyOfLabel: 'Log' }],
-        },
+        recipes: [
+          {
+            stations: ['furnace'],
+            yields: 1,
+            ingredients: [{ item: 'acacia_log', qty: 1, anyOf: ['acacia_log', 'oak_log'], anyOfLabel: 'Log' }],
+          },
+        ],
       },
       stick: {},
       acacia_log: {},
     };
     const withoutAnyOf = {
       campfire: {
-        recipe: {
-          stations: ['crafting_table'],
-          yields: 1,
-          ingredients: [
-            { item: 'stick', qty: 3 },
-            { item: 'charcoal', qty: 1 },
-            { item: 'acacia_log', qty: 3 },
-          ],
-        },
+        recipes: [
+          {
+            stations: ['crafting_table'],
+            yields: 1,
+            ingredients: [
+              { item: 'stick', qty: 3 },
+              { item: 'charcoal', qty: 1 },
+              { item: 'acacia_log', qty: 3 },
+            ],
+          },
+        ],
       },
       charcoal: {
-        recipe: { stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] },
+        recipes: [{ stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] }],
       },
       stick: {},
       acacia_log: {},
@@ -288,28 +445,34 @@ describe('aggregateRaw', () => {
     // top needs 1x branchA (-> 2x raw) and 1x branchB (-> 3x raw): raw totals 5.
     const items = {
       top: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [
-            { item: 'branchA', qty: 1 },
-            { item: 'branchB', qty: 1 },
-          ],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [
+              { item: 'branchA', qty: 1 },
+              { item: 'branchB', qty: 1 },
+            ],
+          },
+        ],
       },
       branchA: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'raw', qty: 2 }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'raw', qty: 2 }],
+          },
+        ],
       },
       branchB: {
-        recipe: {
-          stations: ['s'],
-          yields: 1,
-          ingredients: [{ item: 'raw', qty: 3 }],
-        },
+        recipes: [
+          {
+            stations: ['s'],
+            yields: 1,
+            ingredients: [{ item: 'raw', qty: 3 }],
+          },
+        ],
       },
       raw: {},
     };
@@ -351,10 +514,83 @@ describe('real data: assault_rifle (common)', () => {
   });
 });
 
+describe('MIGRATION PARITY (schema v3 axis 2, PLAN.md §1 decision 1): recipe -> recipes[] must be behaviour-preserving', () => {
+  // The guard for decision 1: "for every item that had exactly one recipe
+  // before, every tree ... must be BYTE-IDENTICAL to before. This migration
+  // is behaviour-preserving by default; only items that actually gained an
+  // alternate can change, and even they default to the same primary."
+  const dataPath = path.join(__dirname, '..', 'data', 'palworld', 'items.json');
+  const { items } = JSON.parse(readFileSync(dataPath, 'utf8'));
+
+  test('single-recipe real items (refined_ingot, polymer) produce the known-good totals unchanged', () => {
+    // refined_ingot: 2x ore + 2x coal per craft (yields 1).
+    const ingot = buildTree(items, 'refined_ingot', 40);
+    const ingotRaw = aggregateRaw(ingot);
+    assert.equal(ingot.crafts, 40);
+    assert.equal(ingotRaw.get('ore'), 80);
+    assert.equal(ingotRaw.get('coal'), 80);
+
+    // polymer: 2x high_quality_pal_oil + 1x sulfur per craft (yields 1).
+    const polymer = buildTree(items, 'polymer', 10);
+    const polymerRaw = aggregateRaw(polymer);
+    assert.equal(polymerRaw.get('high_quality_pal_oil'), 20);
+    assert.equal(polymerRaw.get('sulfur'), 10);
+  });
+
+  test('a genuinely multi-recipe item (carbon_fiber, now 2 recipes) still defaults to the SAME primary as the old single-recipe scrape', () => {
+    const item = items['carbon_fiber'];
+    assert.ok(item.recipes.length > 1, 'carbon_fiber must have gained an alternate for this guard to mean anything');
+
+    const node = buildTree(items, 'carbon_fiber', 1);
+    // Old pre-axis-2 primary (PLAN.md §1, verified on paldb.cc): 2x Coal + 1x
+    // Flame Organ — NOT the 5x Charcoal alternate.
+    assert.deepEqual(
+      node.children.map((c) => ({ itemId: c.itemId, qty: c.qty })),
+      [
+        { itemId: 'coal', qty: 2 },
+        { itemId: 'flame_organ', qty: 1 },
+      ],
+    );
+    const totals = aggregateRaw(node);
+    assert.equal(totals.get('coal'), 2);
+    assert.equal(totals.get('flame_organ'), 1);
+    assert.ok(!totals.has('charcoal'), 'the non-default alternate must not silently leak into the default tree');
+  });
+
+  test('the most extreme multi-recipe item (paldium_fragment, 1 -> 13 recipes) still defaults to the SAME primary', () => {
+    const item = items['paldium_fragment'];
+    assert.equal(item.recipes.length, 13);
+
+    const node = buildTree(items, 'paldium_fragment', 1);
+    // Old pre-axis-2 primary: 1x Meteorite Fragment, yields 3 (cheapest raw
+    // cost) — not the 5x Stone / 2x Ore / any sphere-based alternate.
+    assert.equal(node.crafts, 1); // ceil(1/3)
+    assert.equal(node.children.length, 1);
+    assert.equal(node.children[0].itemId, 'meteorite_fragment');
+    assert.equal(node.children[0].qty, 1);
+  });
+
+  test('every item with recipes.length === 1 round-trips through the leaf test identically to the old !item.recipe check', () => {
+    const singleRecipeIds = Object.entries(items)
+      .filter(([, item]) => item.recipes?.length === 1)
+      .map(([id]) => id)
+      .slice(0, 25); // a sample is enough — this is a shape guard, not a full-catalog walk
+    assert.ok(singleRecipeIds.length > 0);
+    for (const id of singleRecipeIds) {
+      const node = buildTree(items, id, 1);
+      assert.notEqual(node.stations, null, `${id}: a real recipe must not be treated as a leaf`);
+      assert.ok(node.children.length > 0 || items[id].recipes[0].ingredients.length === 0);
+    }
+  });
+});
+
 describe('collapsiblePaths / childPath', () => {
   const items = {
-    top: { name: 'Top', recipe: { stations: ['s'], ingredients: [{ item: 'mid', qty: 2 }, { item: 'raw', qty: 1 }] } },
-    mid: { name: 'Mid', recipe: { stations: ['s'], ingredients: [{ item: 'raw', qty: 3 }] } },
+    top: {
+      name: 'Top',
+      recipes: [{ stations: ['s'], ingredients: [{ item: 'mid', qty: 2 }, { item: 'raw', qty: 1 }] }],
+    },
+    mid: { name: 'Mid', recipes: [{ stations: ['s'], ingredients: [{ item: 'raw', qty: 3 }] }] },
     raw: { name: 'Raw' },
   };
 

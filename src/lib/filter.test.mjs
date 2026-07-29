@@ -48,21 +48,21 @@ function sampleItems() {
       tier: 'common',
       variantGroup: 'sword',
       progression: 10,
-      recipe: { stations: ['bench'], yields: 1, ingredients: [{ item: 'wood', qty: 2 }] },
+      recipes: [{ stations: ['bench'], yields: 1, ingredients: [{ item: 'wood', qty: 2 }] }],
     },
     sword_legendary: {
       name: 'Sword (Legendary)',
       category: 'weapon',
       tier: 'legendary',
       variantGroup: 'sword',
-      recipe: { stations: ['forge'], yields: 1, ingredients: [{ item: 'wood', qty: 8 }] },
+      recipes: [{ stations: ['forge'], yields: 1, ingredients: [{ item: 'wood', qty: 8 }] }],
     },
     sword_rare: {
       name: 'Sword (Rare)',
       category: 'weapon',
       tier: 'rare',
       variantGroup: 'sword',
-      recipe: { stations: ['bench', 'forge'], yields: 1, ingredients: [{ item: 'wood', qty: 4 }] },
+      recipes: [{ stations: ['bench', 'forge'], yields: 1, ingredients: [{ item: 'wood', qty: 4 }] }],
     },
     lonely_variant: {
       name: 'Lonely Variant',
@@ -76,7 +76,7 @@ function sampleItems() {
       category: 'armor',
       tier: 'epic',
       progression: 25,
-      recipe: { stations: ['forge'], yields: 1, ingredients: [{ item: 'wood', qty: 3 }] },
+      recipes: [{ stations: ['forge'], yields: 1, ingredients: [{ item: 'wood', qty: 3 }] }],
     },
     potion: { name: 'Potion', category: 'consumable', tier: 'uncommon' }, // no progression, not craftable
   };
@@ -202,6 +202,50 @@ describe('filters (entry-level, group matches if ANY variant matches)', () => {
   });
 });
 
+describe('schema v3 axis 2: recipes[] (multi-recipe items)', () => {
+  function multiRecipeItems() {
+    return {
+      // Two complete recipes for the same item, at two different stations —
+      // the Minecraft "crafting table OR stonecutter" shape.
+      slab: {
+        name: 'Slab',
+        category: 'block',
+        recipes: [
+          { stations: ['crafting_table'], yields: 6, ingredients: [{ item: 'stone', qty: 3 }] },
+          { stations: ['stonecutter'], yields: 2, ingredients: [{ item: 'stone', qty: 1 }] },
+        ],
+      },
+      stone: { name: 'Stone', category: 'material' },
+    };
+  }
+
+  test('craftableFilter counts an item with any recipes[] entry', () => {
+    const entries = groupVariants(multiRecipeItems());
+    const filtered = entries.filter(craftableFilter(true));
+    assert.deepEqual(filtered.map((e) => e.id).sort(), ['slab']);
+  });
+
+  test('stationFilter matches via a NON-primary recipe (recipes[1]), not just recipes[0]', () => {
+    const entries = groupVariants(multiRecipeItems());
+    const viaStonecutter = entries.filter(stationFilter('stonecutter'));
+    assert.deepEqual(viaStonecutter.map((e) => e.id), ['slab']);
+    const viaCraftingTable = entries.filter(stationFilter('crafting_table'));
+    assert.deepEqual(viaCraftingTable.map((e) => e.id), ['slab']);
+  });
+
+  test('deriveStations lists stations from EVERY recipe of a multi-recipe item, not just the primary', () => {
+    const stations = {
+      crafting_table: { name: 'Crafting Table' },
+      stonecutter: { name: 'Stonecutter' },
+    };
+    const derived = deriveStations(multiRecipeItems(), stations);
+    assert.deepEqual(
+      derived.map((s) => s.id).sort(),
+      ['crafting_table', 'stonecutter'],
+    );
+  });
+});
+
 describe('filterEntries', () => {
   test('combines all filters (AND) over a partial filter-state object', () => {
     const entries = groupVariants(sampleItems(), TIERS);
@@ -305,7 +349,7 @@ describe('derive* option lists (must reflect the loaded data, never hardcoded)',
 
   test('deriveStations falls back to the id and undefined progression for an unresolvable station', () => {
     const items = {
-      x: { name: 'X', recipe: { stations: ['ghost_station'], yields: 1, ingredients: [] } },
+      x: { name: 'X', recipes: [{ stations: ['ghost_station'], yields: 1, ingredients: [] }] },
     };
     const derived = deriveStations(items, {});
     assert.deepEqual(derived, [{ id: 'ghost_station', name: 'ghost_station', progression: undefined }]);

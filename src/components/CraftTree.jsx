@@ -8,7 +8,7 @@ import { TreeRows } from './TreeRows.jsx';
 // only picks a layout: 'diagram' (default) is the top-down infographic
 // layout; 'compact' is indented rows, whose width stays bounded however many
 // leaves a recipe has.
-export function CraftTree({ tree, view = 'diagram', zoom = 1, collapsed, onToggle }) {
+export function CraftTree({ tree, view = 'diagram', zoom = 1, collapsed, onToggle, recipeChoices, onSelectRecipe }) {
   const scrollerRef = useRef(null);
 
   // The diagram centres the root over the whole tree, so a tree wider than
@@ -22,7 +22,15 @@ export function CraftTree({ tree, view = 'diagram', zoom = 1, collapsed, onToggl
   }, [tree, view, zoom, collapsed]);
 
   if (view === 'compact') {
-    return <TreeRows tree={tree} collapsed={collapsed} onToggle={onToggle} />;
+    return (
+      <TreeRows
+        tree={tree}
+        collapsed={collapsed}
+        onToggle={onToggle}
+        recipeChoices={recipeChoices}
+        onSelectRecipe={onSelectRecipe}
+      />
+    );
   }
 
   return (
@@ -31,7 +39,14 @@ export function CraftTree({ tree, view = 'diagram', zoom = 1, collapsed, onToggl
           own dimensions shrink with the tree — a transform would leave the
           scrollbar sized for the unscaled layout. */}
       <ul className="tree min-w-fit px-8 pb-4" style={{ zoom }}>
-        <TreeNode node={tree} path={ROOT_PATH} collapsed={collapsed} onToggle={onToggle} />
+        <TreeNode
+          node={tree}
+          path={ROOT_PATH}
+          collapsed={collapsed}
+          onToggle={onToggle}
+          recipeChoices={recipeChoices}
+          onSelectRecipe={onSelectRecipe}
+        />
       </ul>
     </div>
   );

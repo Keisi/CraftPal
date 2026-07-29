@@ -83,17 +83,20 @@
 //
 //   Multiple DISTINCT RECIPES can target the same result item (e.g. iron
 //   ingot: 3 ores × {smelting, blasting}, an "uncraft 1 iron_block -> 9
-//   iron_ingot" recipe, and a "combine 9 iron_nugget" recipe) — but this
-//   schema (like Palworld's) stores a single `recipe` per item, so one must
-//   be chosen as primary. Mirrors fetch-data.mjs's convention exactly:
-//   cheapest total-raw-ingredient cost wins (recursive, memoized, a cycle
-//   scores Infinity so it never wins over a real alternative), computed only
-//   when an item has 2+ candidate recipes (a single candidate is used as-is,
-//   no cost computation, exactly like Palworld). Every non-chosen candidate
-//   is logged as a dropped alternate recipe. Ties (including ties at
-//   Infinity) keep whichever candidate was encountered FIRST when iterating
-//   the fetched recipes.json in its own (file) key order — deterministic
-//   given a fixed input file, documented here rather than re-derived.
+//   iron_ingot" recipe, and a "combine 9 iron_nugget" recipe) — schema v3
+//   axis 2 (PLAN.md §1 decision 1/2) keeps EVERY one of them as an entry in
+//   that result's `recipes[]`, ordered cheapest-total-raw-ingredient-cost
+//   first (recursive, memoized, a cycle scores Infinity so it never sorts
+//   ahead of a real alternative), computed only when an item has 2+
+//   candidate recipes (a single candidate is used as-is, no cost
+//   computation, exactly like Palworld). `recipes[0]` is exactly the same
+//   primary a pre-axis-2 scrape would have chosen as its single `recipe` —
+//   ties (including ties at Infinity) keep whichever candidate was
+//   encountered FIRST when iterating the fetched recipes.json in its own
+//   (file) key order, via a stable sort — deterministic given a fixed input
+//   file, documented here rather than re-derived. This is what an item
+//   craftable at BOTH a crafting table and a stonecutter now looks like:
+//   two `recipes[]` entries, each with its own single-station `stations`.
 //
 //   Ids: strip the "minecraft:" namespace, keep native snake_case
 //   (diamond_pickaxe) — these are the stable ids for this game, unlike
@@ -669,7 +672,11 @@ async function main() {
     unknownTags: [],
     multiMemberResolutions: [],
     unresolvedRecipes: [],
-    droppedAlternateRecipes: [],
+    // schema v3 axis 2: nothing is dropped anymore (every candidate ships as
+    // a recipes[] entry) — this now lists result items that GAINED
+    // visibility into 2+ recipes, for visibility into what changed vs. a
+    // pre-axis-2 scrape.
+    multiRecipeItems: [],
     itemsNoName: [],
     itemsNoIcon: [],
     counts: {},
@@ -755,12 +762,17 @@ async function main() {
     log(`fetch-minecraft: ${report.unresolvedRecipes.length} recipe(s) could not be parsed (unresolved refs) — see report`);
   }
 
-  // --- Choose one primary recipe per result item (cheapest raw cost) --------
+  // --- Order every candidate recipe per result item, cheapest raw cost first
+  // schema v3 axis 2 (PLAN.md §1 decision 1/2): every candidate becomes a
+  // recipes[] entry now — nothing is dropped. recipesByResult[0] is exactly
+  // the same primary a pre-axis-2 scrape would have chosen as its single
+  // `recipe` (same cost function + stable-sort tie-break), which keeps this
+  // migration behaviour-preserving for every result with only one candidate.
   const memo = new Map();
-  const primaryByResult = new Map(); // resultId -> chosen candidate
+  const recipesByResult = new Map(); // resultId -> candidates, ordered cheapest-first
   for (const [resultId, candidates] of candidatesByResult) {
     if (candidates.length === 1) {
-      primaryByResult.set(resultId, candidates[0]);
+      recipesByResult.set(resultId, candidates);
       continue;
     }
     const costs = candidates.map((cand) => {
@@ -770,19 +782,15 @@ async function main() {
       }
       return total;
     });
-    let bestIdx = 0;
-    for (let i = 1; i < costs.length; i++) if (costs[i] < costs[bestIdx]) bestIdx = i;
-    candidates.forEach((cand, i) => {
-      if (i === bestIdx) return;
-      report.droppedAlternateRecipes.push({
-        resultId,
-        kept: candidates[bestIdx].recipeId,
-        keptCost: costs[bestIdx],
-        dropped: cand.recipeId,
-        droppedCost: costs[i],
-      });
+    // Stable sort: ties keep their original (file key) order, matching the
+    // old "first index to strictly beat every earlier one" bestIdx rule.
+    const order = candidates.map((_, i) => i).sort((a, b) => costs[a] - costs[b]);
+    recipesByResult.set(resultId, order.map((i) => candidates[i]));
+    report.multiRecipeItems.push({
+      resultId,
+      count: candidates.length,
+      recipes: order.map((i) => `${candidates[i].recipeId} (station ${candidates[i].stationId}, cost ${costs[i]})`),
     });
-    primaryByResult.set(resultId, candidates[bestIdx]);
   }
 
   // --- Build the item roster from the authoritative registry ----------------
@@ -800,19 +808,23 @@ async function main() {
     }
     const entry = { name };
 
-    const primary = primaryByResult.get(id);
-    if (primary) {
+    // schema v3 axis 2: `recipe` (single object) -> `recipes` (array,
+    // ordered cheapest-first by recipesByResult). `category` still comes
+    // from the PRIMARY (recipes[0]) candidate only, unchanged from before —
+    // it's item-level metadata, not per-recipe.
+    const candidates = recipesByResult.get(id);
+    if (candidates && candidates.length > 0) {
+      const primary = candidates[0];
       if (primary.category) entry.category = primary.category;
-      entry.recipe = {
-        stations: [primary.stationId],
-        yields: primary.yields ?? 1,
+      entry.recipes = candidates.map((cand) => ({
+        stations: [cand.stationId],
+        yields: cand.yields ?? 1,
         // schema v3 axis 1 (PLAN.md §1 decision 3): `item` stays the sole
         // authoritative representative — tree.js/plan.js math is untouched —
         // `anyOf`/`anyOfLabel` are purely additive UI truth about
         // substitutability, only present when the slot had 2+ real
-        // candidates. No schemaVersion bump: the fields are optional and
-        // every existing consumer keeps working unchanged.
-        ingredients: [...primary.ingredientsMap].map(([item, info]) => {
+        // candidates.
+        ingredients: [...cand.ingredientsMap].map(([item, info]) => {
           const out = { item, qty: info.qty };
           if (info.anyOf && info.anyOf.length > 1) {
             out.anyOf = info.anyOf;
@@ -820,7 +832,7 @@ async function main() {
           }
           return out;
         }),
-      };
+      }));
       craftableCount++;
     }
 
@@ -835,11 +847,13 @@ async function main() {
   const unknownIngredientRefs = [];
   const unknownAnyOfRefs = [];
   for (const [id, item] of Object.entries(finalItems)) {
-    if (!item.recipe) continue;
-    for (const ing of item.recipe.ingredients) {
-      if (!(ing.item in finalItems)) unknownIngredientRefs.push({ item: id, ingredient: ing.item });
-      for (const alt of ing.anyOf ?? []) {
-        if (!(alt in finalItems)) unknownAnyOfRefs.push({ item: id, ingredient: ing.item, anyOfMember: alt });
+    if (!item.recipes) continue;
+    for (const recipe of item.recipes) {
+      for (const ing of recipe.ingredients) {
+        if (!(ing.item in finalItems)) unknownIngredientRefs.push({ item: id, ingredient: ing.item });
+        for (const alt of ing.anyOf ?? []) {
+          if (!(alt in finalItems)) unknownAnyOfRefs.push({ item: id, ingredient: ing.item, anyOfMember: alt });
+        }
       }
     }
   }
@@ -1018,26 +1032,32 @@ async function main() {
   let anyOfNoLabelCount = 0;
   const setSizeBuckets = { '2': 0, '3-9': 0, '10+': 0 };
   let maxAnyOfSize = 0;
+  let multiRecipeItemCount = 0; // schema v3 axis 2: items with 2+ recipes[] entries
   for (const item of Object.values(finalItems)) {
-    if (!item.recipe) continue;
-    let recipeHasAnyOf = false;
-    for (const ing of item.recipe.ingredients) {
-      if (!ing.anyOf) continue;
-      anyOfIngredientCount++;
-      recipeHasAnyOf = true;
-      if (!ing.anyOfLabel) anyOfNoLabelCount++;
-      const size = ing.anyOf.length;
-      if (size > maxAnyOfSize) maxAnyOfSize = size;
-      if (size === 2) setSizeBuckets['2']++;
-      else if (size <= 9) setSizeBuckets['3-9']++;
-      else setSizeBuckets['10+']++;
+    if (!item.recipes) continue;
+    if (item.recipes.length > 1) multiRecipeItemCount++;
+    for (const recipe of item.recipes) {
+      let recipeHasAnyOf = false;
+      for (const ing of recipe.ingredients) {
+        if (!ing.anyOf) continue;
+        anyOfIngredientCount++;
+        recipeHasAnyOf = true;
+        if (!ing.anyOfLabel) anyOfNoLabelCount++;
+        const size = ing.anyOf.length;
+        if (size > maxAnyOfSize) maxAnyOfSize = size;
+        if (size === 2) setSizeBuckets['2']++;
+        else if (size <= 9) setSizeBuckets['3-9']++;
+        else setSizeBuckets['10+']++;
+      }
+      if (recipeHasAnyOf) anyOfRecipeCount++;
     }
-    if (recipeHasAnyOf) anyOfRecipeCount++;
   }
 
   // --- Write outputs -----------------------------------------------------------
+  // schema v3 (PLAN.md §1 decision 2): bumped from 2 -> 3 for the recipe ->
+  // recipes[] breaking change (clean break, no legacy `recipe` key emitted).
   const gameVersion = versionDoc?.id ?? 'unknown (misode/mcmeta summary/version.json unreachable)';
-  const itemsDoc = { schemaVersion: 2, gameVersion, items: finalItems };
+  const itemsDoc = { schemaVersion: 3, gameVersion, items: finalItems };
   writeFileSync(ITEMS_OUT, JSON.stringify(itemsDoc, null, 2) + '\n', 'utf8');
   writeFileSync(STATIONS_OUT, JSON.stringify(finalStations, null, 2) + '\n', 'utf8');
 
@@ -1062,7 +1082,7 @@ async function main() {
     },
     namesFallenBack: report.itemsNoName.length,
     multiMemberResolutions: report.multiMemberResolutions.length,
-    droppedAlternateRecipes: report.droppedAlternateRecipes.length,
+    multiRecipeItems: multiRecipeItemCount,
     unresolvedRecipes: report.unresolvedRecipes.length,
     anyOf: {
       ingredientsWithAnyOf: anyOfIngredientCount,
@@ -1077,12 +1097,12 @@ async function main() {
   log('');
   log(`fetch-minecraft: ${report.partial ? 'PARTIAL' : 'COMPLETE'} run summary`);
   log(`  recipes: ${recipeCount} total, ${keptRecipeCount} kept, ${JSON.stringify(skippedTypeCounts)} skipped`);
-  log(`  items: ${registryOrder.length} (craftable ${craftableCount}, raw ${registryOrder.length - craftableCount})`);
+  log(`  items: ${registryOrder.length} (craftable ${craftableCount}, multi-recipe ${multiRecipeItemCount}, raw ${registryOrder.length - craftableCount})`);
   log(`  stations: ${STATION_IDS.length}`);
   log(`  icons: ${iconsWritten} written, ${iconsPresent} already present, ${iconsMissing} confirmed missing, ${iconsUnattempted} unattempted (--limit) (fallback tiers used: ${JSON.stringify(tierCounts)})`);
   log(`  names fallen back to title-case: ${report.itemsNoName.length}`);
   log(`  multi-member tag/array resolutions: ${report.multiMemberResolutions.length}`);
-  log(`  dropped alternate recipes (multi-recipe items): ${report.droppedAlternateRecipes.length}`);
+  log(`  items with 2+ recipes: ${report.multiRecipeItems.length}`);
   log(`  unresolved/unparseable recipes: ${report.unresolvedRecipes.length}`);
   log(`  tag cycles encountered: ${report.tagCycles.length}, unknown tags referenced: ${report.unknownTags.length}`);
   log(

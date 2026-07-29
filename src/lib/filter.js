@@ -119,12 +119,16 @@ export function tierFilter(tierId) {
 
 export function craftableFilter(craftableOnly) {
   if (!craftableOnly) return () => true;
-  return (entry) => entry.variants.some(({ item }) => Boolean(item.recipe));
+  return (entry) => entry.variants.some(({ item }) => Boolean(item.recipes?.length));
 }
 
+// schema v3 axis 2: an item can now have several recipes at different
+// stations (e.g. Minecraft's crafting-table-or-stonecutter alternates), so a
+// station match must check every recipe, not just a single primary one.
 export function stationFilter(stationId) {
   if (!stationId) return () => true;
-  return (entry) => entry.variants.some(({ item }) => item.recipe?.stations?.includes(stationId));
+  return (entry) =>
+    entry.variants.some(({ item }) => item.recipes?.some((recipe) => recipe.stations?.includes(stationId)));
 }
 
 /**
@@ -211,8 +215,10 @@ export function deriveTiers(items, tiers = []) {
 export function deriveStations(items, stations) {
   const used = new Set();
   for (const item of Object.values(items)) {
-    for (const stationId of item.recipe?.stations ?? []) {
-      used.add(stationId);
+    for (const recipe of item.recipes ?? []) {
+      for (const stationId of recipe.stations ?? []) {
+        used.add(stationId);
+      }
     }
   }
   return [...used]

@@ -97,29 +97,34 @@ export function craftPlan(items, targets) {
 
     // Raw material or unknown id: not a craft step, and not something we can
     // walk further into — leave it for the raw shopping list (or drop it
-    // silently if it's not even a known item).
-    if (!exists || !item.recipe) return;
+    // silently if it's not even a known item). schema v3 axis 2: a task-list
+    // step always follows the PRIMARY recipe (recipes[0]) — there's no
+    // per-node switcher concept here (that's a tree-view-only feature, see
+    // tree.js's recipeChoices), matching decision 1's "the app defaults to
+    // recipes[0] everywhere".
+    if (!exists || !item.recipes || item.recipes.length === 0) return;
+    const recipe = item.recipes[0];
 
-    item.recipe.ingredients.forEach((ingredient) => visit(ingredient.item));
+    recipe.ingredients.forEach((ingredient) => visit(ingredient.item));
 
-    const yields = item.recipe.yields ?? 1;
+    const yields = recipe.yields ?? 1;
     const qty = totals.get(itemId) ?? 0;
     steps.push({
       itemId,
       qty,
       crafts: Math.ceil(qty / yields),
       yields,
-      stations: item.recipe.stations,
+      stations: recipe.stations,
     });
   }
 
   targets.forEach(({ itemId }) => visit(itemId));
 
   // Shopping list: every total that's a genuine raw material (known item,
-  // no recipe) — craftables are already covered by `steps`, and completely
+  // no recipes) — craftables are already covered by `steps`, and completely
   // unknown ids are skipped rather than shown as a mystery card.
   const raw = [...totals.entries()]
-    .filter(([itemId]) => Object.hasOwn(items, itemId) && !items[itemId].recipe)
+    .filter(([itemId]) => Object.hasOwn(items, itemId) && !(items[itemId].recipes?.length > 0))
     .map(([itemId, qty]) => ({ itemId, qty }))
     .sort((a, b) => b.qty - a.qty);
 

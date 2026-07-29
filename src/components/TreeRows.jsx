@@ -3,6 +3,7 @@ import { childPath, ROOT_PATH } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
 import { AnyOfChip } from './AnyOfChip.jsx';
+import { RecipeSwitcher } from './RecipeSwitcher.jsx';
 import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Compact crafting-tree view: one row per node, depth shown by indentation
@@ -12,15 +13,19 @@ import { tierBorderClass, tierColor } from '../lib/tier.js';
 // Same tree object, same collapse state — only the layout differs.
 //
 // Collapse is controlled by the caller (App) so "collapse/expand all" and the
-// view toggle can drive it; `collapsed` is a Set of node paths.
-function TreeRow({ node, path, depth, collapsed, onToggle }) {
+// view toggle can drive it; `collapsed` is a Set of node paths. `recipeChoices`/
+// `onSelectRecipe` (schema v3 axis 2) are the same convention, one level up.
+function TreeRow({ node, path, depth, collapsed, onToggle, recipeChoices, onSelectRecipe }) {
   const { items, manifest } = useGame();
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(path);
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
   const color = tierColor(manifest.tiers, item?.tier);
-  const yieldsPerCraft = item?.recipe?.yields ?? 1;
+  // Reflects whichever recipe buildTree actually used for THIS node (default
+  // recipes[0], or the switcher's per-path override) — see TreeNode.jsx's
+  // matching comment for why this must not be re-derived from item.recipes[0].
+  const yieldsPerCraft = node.yields ?? 1;
 
   return (
     <li>
@@ -80,6 +85,15 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
 
         {node.stations !== null && <StationChip stationIds={node.stations} compact />}
 
+        {item?.recipes?.length > 1 && (
+          <RecipeSwitcher
+            recipes={item.recipes}
+            activeIndex={recipeChoices.get(path) ?? 0}
+            onSelect={(index) => onSelectRecipe(path, index)}
+            compact
+          />
+        )}
+
         {hasChildren && isCollapsed && (
           <span className="shrink-0 text-[10px] text-zinc-500">
             +{node.children.length} ingredient{node.children.length === 1 ? '' : 's'}
@@ -97,6 +111,8 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
               depth={depth + 1}
               collapsed={collapsed}
               onToggle={onToggle}
+              recipeChoices={recipeChoices}
+              onSelectRecipe={onSelectRecipe}
             />
           ))}
         </ul>
@@ -105,10 +121,18 @@ function TreeRow({ node, path, depth, collapsed, onToggle }) {
   );
 }
 
-export function TreeRows({ tree, collapsed, onToggle }) {
+export function TreeRows({ tree, collapsed, onToggle, recipeChoices, onSelectRecipe }) {
   return (
     <ul className="tree-rows max-w-3xl">
-      <TreeRow node={tree} path={ROOT_PATH} depth={0} collapsed={collapsed} onToggle={onToggle} />
+      <TreeRow
+        node={tree}
+        path={ROOT_PATH}
+        depth={0}
+        collapsed={collapsed}
+        onToggle={onToggle}
+        recipeChoices={recipeChoices}
+        onSelectRecipe={onSelectRecipe}
+      />
     </ul>
   );
 }

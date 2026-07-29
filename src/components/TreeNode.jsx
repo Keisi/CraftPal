@@ -3,6 +3,7 @@ import { childPath } from '../lib/tree.js';
 import { ItemIcon } from './ItemIcon.jsx';
 import { StationChip } from './StationChip.jsx';
 import { AnyOfChip } from './AnyOfChip.jsx';
+import { RecipeSwitcher } from './RecipeSwitcher.jsx';
 import { tierBorderClass, tierColor } from '../lib/tier.js';
 
 // Per-node collapse (Phase 4, PLAN.md §5): clicking a node card that has
@@ -10,13 +11,17 @@ import { tierBorderClass, tierColor } from '../lib/tier.js';
 // computed from the full tree regardless of fold state, so re-expanding
 // never has to recompute anything. Collapse state is owned by App (keyed by
 // node path) so collapse/expand-all and the view toggle share it.
-function NodeCard({ node, hasChildren, collapsed, onToggle }) {
+function NodeCard({ node, path, hasChildren, collapsed, onToggle, recipeChoices, onSelectRecipe }) {
   const { items, manifest } = useGame();
   const item = items[node.itemId];
   const name = item?.name ?? node.itemId;
   const color = tierColor(manifest.tiers, item?.tier);
   const isCrafted = node.stations !== null;
-  const yieldsPerCraft = item?.recipe?.yields ?? 1;
+  // The node's OWN yields (schema v3 axis 2) — computed by buildTree from
+  // whichever recipe is actually active for this node (recipes[0] by default,
+  // or the recipe switcher's per-path override), never re-derived from
+  // item.recipes[0] here, which would go stale the moment a switch happens.
+  const yieldsPerCraft = node.yields ?? 1;
 
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -79,6 +84,13 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
 
       {node.anyOf && <AnyOfChip anyOf={node.anyOf} anyOfLabel={node.anyOfLabel} />}
       {isCrafted && <StationChip stationIds={node.stations} />}
+      {item?.recipes?.length > 1 && (
+        <RecipeSwitcher
+          recipes={item.recipes}
+          activeIndex={recipeChoices.get(path) ?? 0}
+          onSelect={(index) => onSelectRecipe(path, index)}
+        />
+      )}
     </div>
   );
 }
@@ -87,7 +99,7 @@ function NodeCard({ node, hasChildren, collapsed, onToggle }) {
 // caller (CraftTree, or a parent TreeNode) is responsible for the wrapping
 // <ul>; connector lines are drawn by plain CSS in src/index.css against the
 // resulting ul/li nesting.
-export function TreeNode({ node, path, collapsed, onToggle }) {
+export function TreeNode({ node, path, collapsed, onToggle, recipeChoices, onSelectRecipe }) {
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(path);
 
@@ -95,9 +107,12 @@ export function TreeNode({ node, path, collapsed, onToggle }) {
     <li>
       <NodeCard
         node={node}
+        path={path}
         hasChildren={hasChildren}
         collapsed={isCollapsed}
         onToggle={() => onToggle(path)}
+        recipeChoices={recipeChoices}
+        onSelectRecipe={onSelectRecipe}
       />
       {hasChildren && !isCollapsed && (
         <ul>
@@ -108,6 +123,8 @@ export function TreeNode({ node, path, collapsed, onToggle }) {
               path={childPath(path, index)}
               collapsed={collapsed}
               onToggle={onToggle}
+              recipeChoices={recipeChoices}
+              onSelectRecipe={onSelectRecipe}
             />
           ))}
         </ul>

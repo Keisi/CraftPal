@@ -18,8 +18,14 @@
 //   3. Parse every rarity variant on each family page (name, category, rarity,
 //      techLevel, recipe alternates, icon URL) with cheerio.
 //   4. Discover + fetch + parse station pages referenced by recipes.
-//   5. Resolve multi-recipe items to a single cheapest-in-raw-resources
-//      primary recipe; log dropped alternates.
+//   5. schema v3 axis 2 (PLAN.md §1 decision 1/2): keep EVERY parsed
+//      alternate as an entry in that item's `recipes[]`, sorted
+//      cheapest-in-raw-resources first — nothing is dropped anymore.
+//      `recipes[0]` is the same primary a pre-axis-2 scrape would have kept
+//      (this is what makes the migration behaviour-preserving for every
+//      single-recipe item); genuinely multi-recipe items (e.g. Carbon Fiber,
+//      Paldium Fragment) now expose every alternate instead of only logging
+//      the ones that used to be discarded.
 //   6. Assign stable kebab-case ids from display names, resolving collisions
 //      with the paldb internal code.
 //   7. Download every referenced icon (throttled + cached), write
@@ -479,7 +485,10 @@ async function main() {
     failedIcons: [],
     unparseablePages: [],
     skippedDebugVariants: [],
-    droppedAlternates: [],
+    // schema v3 axis 2: nothing is dropped anymore (every alternate ships as
+    // a recipes[] entry) — this now lists items that GAINED visibility into
+    // 2+ recipes, for visibility into what changed vs. a pre-axis-2 scrape.
+    multiRecipeItems: [],
     collisions: [],
     unresolvedIngredients: [],
     categoryValues: {},
@@ -743,10 +752,24 @@ async function main() {
     item.stationIds = item.stations.map((s) => stationNameToId.get(s.href)).filter(Boolean);
   }
 
-  // --- Resolve multi-recipe alternates to a single primary ------------------
+  // --- Order multi-recipe alternates, cheapest raw-resource cost first ------
+  // schema v3 axis 2 (PLAN.md §1 decision 1/2): every alternate is KEPT now
+  // (as an entry in recipes[]) — nothing is silently dropped. `recipeOrder`
+  // is the permutation of `item.alternates` indices, cheapest first; index 0
+  // is exactly the same primary a pre-axis-2 scrape would have chosen (same
+  // cost function, same first-index-wins tie-break via a stable sort), which
+  // is what keeps this migration behaviour-preserving for every item that
+  // only ever had one real alternate.
   const memo = new Map();
   for (const item of itemsById.values()) {
-    if (item.alternates.length <= 1) continue;
+    if (item.alternates.length === 0) {
+      item.recipeOrder = [];
+      continue;
+    }
+    if (item.alternates.length === 1) {
+      item.recipeOrder = [0];
+      continue;
+    }
     const costs = item.alternates.map((alt) => {
       let cost = 0;
       for (const ing of alt.ingredients) {
@@ -755,23 +778,21 @@ async function main() {
       }
       return cost;
     });
-    let bestIdx = 0;
-    for (let i = 1; i < costs.length; i++) if (costs[i] < costs[bestIdx]) bestIdx = i;
-    item.alternates.forEach((alt, i) => {
-      if (i === bestIdx) return;
-      report.droppedAlternates.push({
-        item: item.id,
-        name: item.name,
-        kept: item.alternates[bestIdx].ingredients.map((x) => `${x.qty}x ${x.name}`).join(' + '),
-        dropped: alt.ingredients.map((x) => `${x.qty}x ${x.name}`).join(' + '),
-        keptRawCost: costs[bestIdx],
-        droppedRawCost: costs[i],
-      });
+    // Array.prototype.sort is stable (guaranteed since ES2019) — ties keep
+    // their original alternates[] order, so order[0] matches the old
+    // `bestIdx` (first index to strictly beat every earlier one) exactly.
+    const order = item.alternates.map((_, i) => i).sort((a, b) => costs[a] - costs[b]);
+    item.recipeOrder = order;
+    report.multiRecipeItems.push({
+      item: item.id,
+      name: item.name,
+      count: item.alternates.length,
+      recipes: order.map((i) => {
+        const alt = item.alternates[i];
+        const cost = costs[i];
+        return `${alt.ingredients.map((x) => `${x.qty}x ${x.name}`).join(' + ')} (raw cost ${Number.isFinite(cost) ? cost : 'inf'})`;
+      }),
     });
-    item.primaryAlternateIdx = bestIdx;
-  }
-  for (const item of itemsById.values()) {
-    if (item.primaryAlternateIdx === undefined) item.primaryAlternateIdx = 0;
   }
 
   // --- Icon filename assignment (dedupe within a family) --------------------
@@ -796,6 +817,11 @@ async function main() {
   // vocabulary (rarity/techLevel/family) stays as the internal variable names
   // above since that's paldb.cc's own domain language for the scrape — only
   // the emitted JSON shape is renamed here.
+  //
+  // schema v3 axis 2: `recipe` (single object) -> `recipes` (array, ordered
+  // by recipeOrder — cheapest first). `progression`/`tier`/etc. stay
+  // item-level, derived from the PRIMARY (recipes[0]) alternate exactly as
+  // before — only the recipe shape itself is now plural.
   const finalItems = {};
   for (const item of itemsById.values()) {
     const entry = {
@@ -805,17 +831,25 @@ async function main() {
       tier: item.rarity,
     };
     if (item.family) entry.variantGroup = item.family;
-    const primary = item.alternates[item.primaryAlternateIdx];
+    const primary = item.alternates[item.recipeOrder[0]];
     if (primary && primary.techLevel !== undefined) entry.progression = primary.techLevel;
-    if (primary && primary.ingredients.length > 0) {
-      entry.recipe = {
+
+    const recipes = item.recipeOrder
+      .map((idx) => item.alternates[idx])
+      .map((alt) => ({
         stations: item.stationIds ?? [],
-        yields: primary.yields ?? 1,
-        ingredients: primary.ingredients
-          .filter((ing) => ing.resolvedId)
-          .map((ing) => ({ item: ing.resolvedId, qty: ing.qty })),
-      };
-    }
+        yields: alt.yields ?? 1,
+        ingredients: alt.ingredients.filter((ing) => ing.resolvedId).map((ing) => ({ item: ing.resolvedId, qty: ing.qty })),
+      }))
+      // An alternate whose ingredients ALL failed to resolve is useless to
+      // ship — except when it's the item's ONLY alternate, in which case a
+      // pre-axis-2 scrape would have shipped it anyway (this never happens
+      // on the real 2026-07-27 Palworld data — 0 unresolved ingredients —
+      // but the fallback keeps single-recipe behaviour byte-identical even
+      // in that hypothetical).
+      .filter((recipe, i, arr) => recipe.ingredients.length > 0 || arr.length === 1);
+    if (recipes.length > 0) entry.recipes = recipes;
+
     finalItems[item.id] = entry;
   }
 
@@ -829,15 +863,17 @@ async function main() {
   // --- Internal validation (mirrors scripts/validate-data.mjs) --------------
   const validationErrors = [];
   for (const [id, item] of Object.entries(finalItems)) {
-    if (!item.recipe) continue;
-    for (const stationId of item.recipe.stations) {
-      if (!(stationId in finalStations)) {
-        validationErrors.push(`item "${id}": recipe references unknown station "${stationId}"`);
+    if (!item.recipes) continue;
+    for (const recipe of item.recipes) {
+      for (const stationId of recipe.stations) {
+        if (!(stationId in finalStations)) {
+          validationErrors.push(`item "${id}": recipe references unknown station "${stationId}"`);
+        }
       }
-    }
-    for (const ing of item.recipe.ingredients) {
-      if (!(ing.item in finalItems)) {
-        validationErrors.push(`item "${id}": recipe references unknown ingredient "${ing.item}"`);
+      for (const ing of recipe.ingredients) {
+        if (!(ing.item in finalItems)) {
+          validationErrors.push(`item "${id}": recipe references unknown ingredient "${ing.item}"`);
+        }
       }
     }
   }
@@ -884,11 +920,14 @@ async function main() {
   }
 
   // --- Write outputs -----------------------------------------------------------
-  const itemsDoc = { schemaVersion: 2, gameVersion, items: finalItems };
+  // schema v3 (PLAN.md §1 decision 2): bumped from 2 -> 3 for the recipe ->
+  // recipes[] breaking change (clean break, no legacy `recipe` key emitted).
+  const itemsDoc = { schemaVersion: 3, gameVersion, items: finalItems };
   writeFileSync(ITEMS_OUT, JSON.stringify(itemsDoc, null, 2) + '\n', 'utf8');
   writeFileSync(STATIONS_OUT, JSON.stringify(finalStations, null, 2) + '\n', 'utf8');
 
-  const craftableCount = Object.values(finalItems).filter((i) => i.recipe).length;
+  const craftableCount = Object.values(finalItems).filter((i) => i.recipes).length;
+  const multiRecipeCount = Object.values(finalItems).filter((i) => i.recipes && i.recipes.length > 1).length;
   const variantCount = Object.values(finalItems).filter((i) => i.variantGroup).length;
 
   report.finishedAt = new Date().toISOString();
@@ -898,6 +937,7 @@ async function main() {
     familiesParsed: rawFamilies.size,
     items: Object.keys(finalItems).length,
     craftable: craftableCount,
+    multiRecipe: multiRecipeCount,
     variants: variantCount,
     stations: Object.keys(finalStations).length,
     icons: iconsPresent + iconsWritten,
@@ -911,11 +951,11 @@ async function main() {
 
   log('');
   log(`fetch-data: ${report.partial ? 'PARTIAL' : 'COMPLETE'} run summary`);
-  log(`  items: ${report.counts.items} (craftable ${craftableCount}, variants ${variantCount})`);
+  log(`  items: ${report.counts.items} (craftable ${craftableCount}, multi-recipe ${multiRecipeCount}, variants ${variantCount})`);
   log(`  stations: ${report.counts.stations}`);
   log(`  icons: ${report.counts.icons} total (${iconsWritten} written this run, ${iconsPresent} already present), missing: ${iconsMissing}`);
   log(`  category values: ${JSON.stringify(report.categoryValues)}`);
-  log(`  dropped alternate recipes: ${report.droppedAlternates.length}`);
+  log(`  items with 2+ recipes: ${report.multiRecipeItems.length}`);
   log(`  id collisions resolved: ${report.collisions.length}`);
   log(`  unparseable pages: ${report.unparseablePages.length}`);
   log(`  unresolved ingredient refs: ${report.unresolvedIngredients.length}`);

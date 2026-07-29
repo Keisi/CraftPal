@@ -397,6 +397,7 @@ function validateGame(gameId, errors) {
       itemsMissingIcon: 0,
       stationsMissingIcon: 0,
       anyOfCount: 0,
+      multiRecipeCount: 0,
     }
   }
 
@@ -411,34 +412,63 @@ function validateGame(gameId, errors) {
   const publicAssetDir = path.join(PUBLIC_DIR, ...assetBase.split('/').filter(Boolean))
 
   let anyOfCount = 0
+  let multiRecipeCount = 0 // items with 2+ entries in recipes[] (schema v3 axis 2)
   const reportedBadAnyOfIds = new Set() // dedupe: one error per distinct (item, ingredient, bad-alt) triple
 
   // 1. Every recipe.ingredients[].item must exist in items.
   // 2. Every recipe.stations[] must exist in stations.
   // 3. If the manifest declares tiers, every item.tier (if set) must be one of them.
+  // schema v3 axis 2 (PLAN.md §1 decision 1/2): `item.recipe` (single object)
+  // is now `item.recipes` (array, sorted cheapest-first) — a CLEAN BREAK, no
+  // back-compat. A lingering legacy `recipe` key or a present-but-empty
+  // `recipes` array are both hard errors (absent beats empty: a raw material
+  // omits `recipes` entirely).
   for (const [id, item] of Object.entries(items)) {
     if (tierIds.size > 0 && item.tier != null && !tierIds.has(item.tier)) {
       errors.push(`[${gameId}] item "${id}": tier "${item.tier}" is not declared in game.json's tiers`)
     }
 
-    if (!item.recipe) continue
-
-    if (!Array.isArray(item.recipe.stations)) {
-      errors.push(`[${gameId}] item "${id}": recipe.stations must be an array`)
-    } else {
-      for (const stationId of item.recipe.stations) {
-        if (!(stationId in stations)) {
-          errors.push(`[${gameId}] item "${id}": recipe references unknown station "${stationId}"`)
-        }
-      }
+    if (Object.hasOwn(item, 'recipe')) {
+      errors.push(
+        `[${gameId}] item "${id}": still has a legacy "recipe" key — schema v3 requires "recipes" (an array); migrate it and remove "recipe"`,
+      )
     }
 
-    if (!Array.isArray(item.recipe.ingredients)) {
-      errors.push(`[${gameId}] item "${id}": recipe.ingredients must be an array`)
-    } else {
-      for (const ing of item.recipe.ingredients) {
+    if (item.recipes === undefined) continue
+
+    if (!Array.isArray(item.recipes)) {
+      errors.push(`[${gameId}] item "${id}": "recipes" must be an array`)
+      continue
+    }
+    if (item.recipes.length === 0) {
+      errors.push(
+        `[${gameId}] item "${id}": "recipes" is present but empty — a raw material must omit "recipes" entirely (absent beats empty)`,
+      )
+      continue
+    }
+    if (item.recipes.length > 1) multiRecipeCount++
+
+    item.recipes.forEach((recipe, recipeIdx) => {
+      const recipeLabel = item.recipes.length > 1 ? `recipes[${recipeIdx}]` : 'recipe'
+
+      if (!Array.isArray(recipe.stations)) {
+        errors.push(`[${gameId}] item "${id}": ${recipeLabel}.stations must be an array`)
+      } else {
+        for (const stationId of recipe.stations) {
+          if (!(stationId in stations)) {
+            errors.push(`[${gameId}] item "${id}": ${recipeLabel} references unknown station "${stationId}"`)
+          }
+        }
+      }
+
+      if (!Array.isArray(recipe.ingredients)) {
+        errors.push(`[${gameId}] item "${id}": ${recipeLabel}.ingredients must be an array`)
+        return
+      }
+
+      for (const ing of recipe.ingredients) {
         if (!(ing.item in items)) {
-          errors.push(`[${gameId}] item "${id}": recipe references unknown ingredient item "${ing.item}"`)
+          errors.push(`[${gameId}] item "${id}": ${recipeLabel} references unknown ingredient item "${ing.item}"`)
         }
 
         // schema v3 axis 1 ("any of a set" ingredients, PLAN.md §1 decision 3 /
@@ -449,11 +479,11 @@ function validateGame(gameId, errors) {
         if (ing.anyOf !== undefined) {
           anyOfCount++
           if (!Array.isArray(ing.anyOf)) {
-            errors.push(`[${gameId}] item "${id}": recipe ingredient "${ing.item}" has a non-array anyOf`)
+            errors.push(`[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has a non-array anyOf`)
           } else {
             if (ing.anyOf.length < 2) {
               errors.push(
-                `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf with ${ing.anyOf.length} entr${ing.anyOf.length === 1 ? 'y' : 'ies'} — anyOf must have at least 2 (a single option is "no choice" and must omit anyOf entirely)`,
+                `[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has anyOf with ${ing.anyOf.length} entr${ing.anyOf.length === 1 ? 'y' : 'ies'} — anyOf must have at least 2 (a single option is "no choice" and must omit anyOf entirely)`,
               )
             }
             // The invariant that keeps the tree maths honest: expansion and
@@ -462,14 +492,14 @@ function validateGame(gameId, errors) {
             // would describe a different, disconnected set of options.
             if (!ing.anyOf.includes(ing.item)) {
               errors.push(
-                `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf that does not include "${ing.item}" itself — anyOf must contain the ingredient's own item, since tree.js/plan.js quantities always follow item, not anyOf`,
+                `[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has anyOf that does not include "${ing.item}" itself — anyOf must contain the ingredient's own item, since tree.js/plan.js quantities always follow item, not anyOf`,
               )
             }
             for (const alt of ing.anyOf) {
-              if (!(alt in items) && !reportedBadAnyOfIds.has(`${id} ${ing.item} ${alt}`)) {
-                reportedBadAnyOfIds.add(`${id} ${ing.item} ${alt}`)
+              if (!(alt in items) && !reportedBadAnyOfIds.has(`${id} ${recipeIdx} ${ing.item} ${alt}`)) {
+                reportedBadAnyOfIds.add(`${id} ${recipeIdx} ${ing.item} ${alt}`)
                 errors.push(
-                  `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOf referencing unknown item "${alt}"`,
+                  `[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has anyOf referencing unknown item "${alt}"`,
                 )
               }
             }
@@ -479,17 +509,17 @@ function validateGame(gameId, errors) {
         if (ing.anyOfLabel !== undefined) {
           if (typeof ing.anyOfLabel !== 'string' || ing.anyOfLabel.length === 0) {
             errors.push(
-              `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOfLabel that is not a non-empty string`,
+              `[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has anyOfLabel that is not a non-empty string`,
             )
           }
           if (ing.anyOf === undefined) {
             errors.push(
-              `[${gameId}] item "${id}": recipe ingredient "${ing.item}" has anyOfLabel but no anyOf — a label with no set makes no sense`,
+              `[${gameId}] item "${id}": ${recipeLabel} ingredient "${ing.item}" has anyOfLabel but no anyOf — a label with no set makes no sense`,
             )
           }
         }
       }
-    }
+    })
   }
 
   // 4. Every item/station icon path must resolve under public/<assetBase>/.
@@ -580,6 +610,7 @@ function validateGame(gameId, errors) {
     itemsMissingIcon,
     stationsMissingIcon,
     anyOfCount,
+    multiRecipeCount,
   }
 }
 
@@ -597,6 +628,8 @@ let totalMarkers = 0
 let totalItemsMissingIcon = 0
 let totalStationsMissingIcon = 0
 let totalAnyOf = 0
+let totalMultiRecipe = 0
+const multiRecipeByGame = [] // "<gameId>: N"
 const skippedByGame = [] // "<gameId>: <dataset>, <dataset>"
 const tileSummaryByGame = [] // "<gameId>: z0 1/1, z1 4/4, ..."
 
@@ -612,6 +645,7 @@ for (const gameId of gameDirs) {
     itemsMissingIcon,
     stationsMissingIcon,
     anyOfCount,
+    multiRecipeCount,
   } = validateGame(gameId, errors)
   totalItems += itemCount
   totalStations += stationCount
@@ -621,6 +655,8 @@ for (const gameId of gameDirs) {
   totalItemsMissingIcon += itemsMissingIcon
   totalStationsMissingIcon += stationsMissingIcon
   totalAnyOf += anyOfCount
+  totalMultiRecipe += multiRecipeCount
+  if (multiRecipeCount > 0) multiRecipeByGame.push(`${gameId}: ${multiRecipeCount}`)
   if (skipped.length > 0) skippedByGame.push(`${gameId}: ${skipped.join(', ')}`)
   if (tileZoomCounts) {
     const perZoom = Object.entries(tileZoomCounts)
@@ -643,10 +679,13 @@ const missingIconNote =
   totalMissingIcon > 0
     ? ` ${totalMissingIcon} item/station icon(s) legitimately absent (${totalItemsMissingIcon} items, ${totalStationsMissingIcon} stations) — allowed, not an error (see checkIcon).`
     : ''
+const multiRecipeNote =
+  multiRecipeByGame.length > 0 ? ` Multi-recipe items (2+ recipes[]): ${multiRecipeByGame.join(', ')}.` : ''
 
 console.log(
   `validate-data: OK — ${gameDirs.length} game${gameDirs.length === 1 ? '' : 's'} (${gameDirs.join(', ')}), ` +
     `${totalItems} items, ${totalStations} stations, ${totalPals} pals, ${totalHabitatFiles} habitat files, ` +
-    `${totalMarkers} map markers, ${totalAnyOf} anyOf ingredient(s), all references resolve and every present icon resolves to a real file.` +
-    `${missingIconNote}${tilesNote}${skippedNote}`,
+    `${totalMarkers} map markers, ${totalAnyOf} anyOf ingredient(s), ${totalMultiRecipe} item(s) with 2+ recipes, ` +
+    `all references resolve and every present icon resolves to a real file.` +
+    `${missingIconNote}${tilesNote}${skippedNote}${multiRecipeNote}`,
 )

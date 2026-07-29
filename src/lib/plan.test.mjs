@@ -22,10 +22,10 @@ describe('aggregateRequirements', () => {
   test('sums every node (not just leaves) for a single target', () => {
     const items = {
       top: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 2 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 2 }] }],
       },
       mid: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 3 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 3 }] }],
       },
       raw: {},
     };
@@ -39,13 +39,13 @@ describe('aggregateRequirements', () => {
   test('merges a shared intermediate across two different targets', () => {
     const items = {
       arrow: {
-        recipe: { stations: ['s'], yields: 10, ingredients: [{ item: 'shared', qty: 2 }] },
+        recipes: [{ stations: ['s'], yields: 10, ingredients: [{ item: 'shared', qty: 2 }] }],
       },
       bow: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'shared', qty: 40 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'shared', qty: 40 }] }],
       },
       shared: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] }],
       },
       raw: {},
     };
@@ -77,7 +77,7 @@ describe('craftPlan', () => {
   test('unknown ingredient inside a real recipe is skipped safely', () => {
     const items = {
       thing: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'nonexistent', qty: 4 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'nonexistent', qty: 4 }] }],
       },
     };
     assert.doesNotThrow(() => craftPlan(items, [{ itemId: 'thing', qty: 1 }]));
@@ -90,10 +90,10 @@ describe('craftPlan', () => {
   test('dependency ordering: an ingredient always appears before its dependent', () => {
     const items = {
       top: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 1 }] }],
       },
       mid: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] }],
       },
       raw: {},
     };
@@ -109,13 +109,13 @@ describe('craftPlan', () => {
   test('shared intermediate across two targets collapses into ONE step with summed qty', () => {
     const items = {
       arrow: {
-        recipe: { stations: ['s'], yields: 10, ingredients: [{ item: 'shared', qty: 2 }] },
+        recipes: [{ stations: ['s'], yields: 10, ingredients: [{ item: 'shared', qty: 2 }] }],
       },
       bow: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'shared', qty: 40 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'shared', qty: 40 }] }],
       },
       shared: {
-        recipe: { stations: ['bench'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] },
+        recipes: [{ stations: ['bench'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] }],
       },
       raw: {},
     };
@@ -137,7 +137,7 @@ describe('craftPlan', () => {
   test('yields > 1 uses ceil for crafts (yields 10, need 15 -> 2 crafts)', () => {
     const items = {
       arrow: {
-        recipe: { stations: ['s'], yields: 10, ingredients: [{ item: 'stick', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 10, ingredients: [{ item: 'stick', qty: 1 }] }],
       },
       stick: {},
     };
@@ -150,10 +150,10 @@ describe('craftPlan', () => {
   test('raw list excludes every craftable item', () => {
     const items = {
       top: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'mid', qty: 1 }] }],
       },
       mid: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'raw', qty: 1 }] }],
       },
       raw: {},
     };
@@ -167,14 +167,14 @@ describe('craftPlan', () => {
   test('raw list sorts qty descending', () => {
     const items = {
       top: {
-        recipe: {
+        recipes: [{
           stations: ['s'],
           yields: 1,
           ingredients: [
             { item: 'small', qty: 1 },
             { item: 'big', qty: 100 },
           ],
-        },
+        }],
       },
       small: {},
       big: {},
@@ -189,10 +189,10 @@ describe('craftPlan', () => {
   test('cycle in data terminates and never produces a duplicate/infinite step', () => {
     const items = {
       a: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'b', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'b', qty: 1 }] }],
       },
       b: {
-        recipe: { stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] },
+        recipes: [{ stations: ['s'], yields: 1, ingredients: [{ item: 'a', qty: 1 }] }],
       },
     };
     assert.doesNotThrow(() => craftPlan(items, [{ itemId: 'a', qty: 1 }]));
@@ -210,7 +210,7 @@ describe('craftPlan/aggregateRequirements: anyOf/anyOfLabel (schema v3 axis 1, P
     // ZERO effect on steps, raw totals, ordering, or crafts/yields.
     const withAnyOf = {
       campfire: {
-        recipe: {
+        recipes: [{
           stations: ['crafting_table'],
           yields: 1,
           ingredients: [
@@ -218,21 +218,21 @@ describe('craftPlan/aggregateRequirements: anyOf/anyOfLabel (schema v3 axis 1, P
             { item: 'charcoal', qty: 1, anyOf: ['charcoal', 'coal'], anyOfLabel: 'Coals' },
             { item: 'acacia_log', qty: 3, anyOf: ['acacia_log', 'oak_log', 'spruce_log'], anyOfLabel: 'Log' },
           ],
-        },
+        }],
       },
       charcoal: {
-        recipe: {
+        recipes: [{
           stations: ['furnace'],
           yields: 1,
           ingredients: [{ item: 'acacia_log', qty: 1, anyOf: ['acacia_log', 'oak_log'], anyOfLabel: 'Log' }],
-        },
+        }],
       },
       stick: {},
       acacia_log: {},
     };
     const withoutAnyOf = {
       campfire: {
-        recipe: {
+        recipes: [{
           stations: ['crafting_table'],
           yields: 1,
           ingredients: [
@@ -240,10 +240,10 @@ describe('craftPlan/aggregateRequirements: anyOf/anyOfLabel (schema v3 axis 1, P
             { item: 'charcoal', qty: 1 },
             { item: 'acacia_log', qty: 3 },
           ],
-        },
+        }],
       },
       charcoal: {
-        recipe: { stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] },
+        recipes: [{ stations: ['furnace'], yields: 1, ingredients: [{ item: 'acacia_log', qty: 1 }] }],
       },
       stick: {},
       acacia_log: {},

@@ -12,8 +12,10 @@ function TargetRow({ task, onQtyChange, onRemove }) {
   // A batch recipe can only be run whole (a craft of ammo yields 50; the game
   // won't make you one round), so these targets are counted in CRAFTS, not
   // pieces — otherwise raising 1 → 10 pieces changes no materials and reads
-  // as a broken calculation.
-  const yieldsPerCraft = item?.recipe?.yields ?? 1;
+  // as a broken calculation. A queued task target isn't a tree node (no
+  // per-node recipe switcher applies here) — it always follows the PRIMARY
+  // recipe (recipes[0]), same as plan.js's craftPlan().
+  const yieldsPerCraft = item?.recipes?.[0]?.yields ?? 1;
   const isBatch = yieldsPerCraft > 1;
 
   return (

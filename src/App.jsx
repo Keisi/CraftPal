@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGame } from './lib/GameContext.js'
-import { buildTree, collapsiblePaths } from './lib/tree.js'
+import { buildTree, collapsiblePaths, ROOT_PATH } from './lib/tree.js'
 import { craftPlan } from './lib/plan.js'
 import { loadJSON, saveJSON } from './lib/storage.js'
 import { CraftTree } from './components/CraftTree.jsx'
@@ -44,9 +44,12 @@ const PROGRESS_KEY = 'craftpal.taskProgress'
 
 // A batch recipe can only be run whole — the game has no way to craft a
 // single round of ammo when a craft yields 50 — so a target quantity is
-// always rounded up to a whole number of crafts.
+// always rounded up to a whole number of crafts. Tasks aren't tree nodes (no
+// per-node recipe switcher applies), so this always follows the item's
+// PRIMARY recipe (recipes[0]) — schema v3 axis 2's "the app defaults to
+// recipes[0] everywhere" outside the tree view.
 function wholeBatches(items, itemId, qty) {
-  const yieldsPerCraft = items[itemId]?.recipe?.yields ?? 1
+  const yieldsPerCraft = items[itemId]?.recipes?.[0]?.yields ?? 1
   if (yieldsPerCraft <= 1) return qty
   return Math.ceil(qty / yieldsPerCraft) * yieldsPerCraft
 }
@@ -261,6 +264,11 @@ function App() {
   // Collapse state lives here, keyed by node path, so it survives a view
   // switch and can be driven wholesale by collapse/expand-all.
   const [collapsed, setCollapsed] = useState(() => new Set())
+  // Recipe-switcher state (schema v3 axis 2 payoff, PLAN.md §1 decision 4):
+  // node path -> chosen index into that node's item.recipes[]. Keyed by path,
+  // exactly like collapse state above, never by itemId — the same item can
+  // appear at several tree positions and each must switch independently.
+  const [recipeChoices, setRecipeChoices] = useState(() => new Map())
   const [showTasks, setShowTasks] = useState(false)
   const [showMap, setShowMap] = useState(false)
   // Which pal's habitat the map should focus when it opens (PLAN.md §8's
@@ -335,8 +343,8 @@ function App() {
   // here and hand the same tree object to both CraftTree (renders it) and
   // RawSummary (aggregates it) instead of each recomputing buildTree itself.
   const tree = useMemo(
-    () => (selectedId ? buildTree(items, selectedId, qty) : null),
-    [items, selectedId, qty],
+    () => (selectedId ? buildTree(items, selectedId, qty, new Set(), ROOT_PATH, recipeChoices) : null),
+    [items, selectedId, qty, recipeChoices],
   )
 
   const toggleCollapsed = useCallback((path) => {
@@ -348,10 +356,25 @@ function App() {
     })
   }, [])
 
+  // Recipe switcher (schema v3 axis 2 payoff): swap which recipe a SPECIFIC
+  // node uses. Collapse state resets, same reasoning as the variant switcher
+  // below — a different recipe can change the ingredient list at and below
+  // this node, so any existing collapse paths under it may no longer mean
+  // what they meant a moment ago.
+  const handleSelectRecipe = useCallback((path, index) => {
+    setRecipeChoices((current) => {
+      const next = new Map(current)
+      next.set(path, index)
+      return next
+    })
+    setCollapsed(new Set())
+  }, [])
+
   function handleSelect(id) {
     setSelectedId(id)
     setQty(1)
     setCollapsed(new Set())
+    setRecipeChoices(new Map())
     setShowTasks(false)
   }
 
@@ -369,6 +392,7 @@ function App() {
   function handleSelectVariant(id) {
     setSelectedId(id)
     setCollapsed(new Set())
+    setRecipeChoices(new Map())
   }
 
   if (showTasks) {
@@ -419,7 +443,15 @@ function App() {
         <DroppedBy itemId={selectedId} onShowOnMap={hasMap && hasHabitats ? handleShowPalOnMap : null} />
 
         <main className="flex-1 px-6 py-6">
-          <CraftTree tree={tree} view={view} zoom={zoom} collapsed={collapsed} onToggle={toggleCollapsed} />
+          <CraftTree
+            tree={tree}
+            view={view}
+            zoom={zoom}
+            collapsed={collapsed}
+            onToggle={toggleCollapsed}
+            recipeChoices={recipeChoices}
+            onSelectRecipe={handleSelectRecipe}
+          />
         </main>
 
         <RawSummary tree={tree} />
