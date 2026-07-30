@@ -283,11 +283,25 @@ Paltree/
 
 ## 7. Implementation phases
 
-**Status (2026-07-27): phases 1–4 all shipped** and live at
-https://keisi.github.io/CraftPal/. Post-phase work: compact indented tree
-view (default) + Compact/Diagram toggle + collapse/expand-all, lazy-loaded
-icons, and a crafting-tasks build list. The per-phase notes below are kept
-as the original plan of record.
+**Status (2026-07-30): phases 1–4 shipped, plus §8 and §9 in full** — live at
+https://keisi.github.io/CraftPal/. The per-phase notes below are kept as the
+original plan of record; everything after phase 4, newest first:
+
+- **Hardening** — Minecraft upstream pinned by commit SHA; per-pal habitat shrink
+  guard; `game.json`'s `datasets` made load-bearing so a declared-but-missing
+  dataset fails instead of reporting "skipped". Every scraper now has a floor.
+- **Schema v3** — `recipes[]` (choice between whole recipes; 368 multi-recipe
+  items) and `anyOf` on an ingredient (choice within one slot; 267 ingredients).
+  Both axes of what §9's second-game test flagged as missing. See §1.
+- **Second game (Minecraft)** — 1,610 items, archived in-repo but never deployed;
+  the honest test of §9's "a game is just a JSON bundle" claim. See §9.
+- **§9 game-agnostic refactor** — per-game manifests, neutral field names,
+  build-time game switch, no Palworld concepts in `src/components/`.
+- **§8 map + habitats** — 13,944 POI markers / 71 layers, an 85-tile pyramid,
+  300 pals with 279 day/night-split habitats (130,201 spawn points), and the
+  item → dropping pals → locations link that justifies the feature.
+- Earlier post-phase work: compact indented tree view (default) + Compact/Diagram
+  toggle + collapse/expand-all, lazy-loaded icons, crafting-tasks build list.
 
 1. **Scaffold** — Vite + React + Tailwind; hand-written sample `items.json`
      covering one full multi-rarity weapon chain (Assault Rifle Common +
@@ -460,10 +474,20 @@ Sequence: manifest + renames → decouple components from `data.js` → loader +
 ### Result of the second-game test (Minecraft, 2026-07-27)
 
 Ported Minecraft (1,610 items, 1,076 craftable, 8 stations, from vanilla's own
-data via misode/mcmeta) on the local-only `feat/minecraft-game` branch — never
-merged, because Pages serves Palworld. Deliberately chosen because Minecraft has
-**no rarity tiers, no tech levels and no map**, which is what §9 claims to
-support.
+data via misode/mcmeta). Deliberately chosen because Minecraft has **no rarity
+tiers, no tech levels and no map**, which is what §9 claims to support.
+
+The dataset **is merged** (PR #1) and lives in the repo for posterity, but it is
+**never part of the deployed site**: the Pages workflow runs a bare `npm run build`
+which defaults to `palworld`, and a build-only Vite plugin prunes every other
+game's `dist/games/<game>` dir. Verified live — `/games/palworld/*` returns 200,
+`/games/minecraft/*` returns 404. Run it locally with
+`VITE_GAME=minecraft npm run dev`. (This section previously said the branch was
+"never merged"; that was true only until Kevin asked for the PR.)
+
+The upstream is **pinned by commit SHA** in `scripts/minecraft-sources.lock.json`,
+not by branch — mcmeta's branches move, and one run watched `gameVersion` advance
+`26.3-snapshot-5` → `-6` mid-invocation. See CLAUDE.md for the pinning rules.
 
 **§9's component contract held.** Zero files under `src/components/` changed.
 Confirmed live: no tier chips, sorts are exactly Name/Category, no Map tab. Real
