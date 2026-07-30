@@ -30,65 +30,76 @@ balance patch.
 tiers of a weapon (unlocked via schematics) are distinct items with distinct,
 more expensive recipes (verified on paldb.cc: Common Assault Rifle = 40 Refined
 Ingot + 10 Polymer + 10 Carbon Fiber; Legendary = 80 + 20 + 20 + 4 Ancient
-Civilization Parts). So each variant gets its own entry with its own `recipe`,
-a `rarity` field, and a shared `family` id linking the tiers together for the UI.
+Civilization Parts). So each variant gets its own entry with its own `recipes`,
+a `tier` field, and a shared `variantGroup` id linking the tiers together for the
+UI. (Field names were `rarity`/`family`/`recipe` before schema v2/v3 — see Rules.)
 
 ### Schema
 
-`src/data/items.json`:
+`src/data/<game>/items.json`:
 
 ```json
 {
-  "schemaVersion": 1,
-  "gameVersion": "0.6.x",
+  "schemaVersion": 3,
+  "gameVersion": "0.7.3",
   "items": {
     "assault_rifle": {
       "name": "Assault Rifle",
       "icon": "icons/assault_rifle.webp",
       "category": "weapon",
-      "rarity": "common",
-      "family": "assault_rifle",
-      "techLevel": 45,
-      "recipe": {
-        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line"],
-        "yields": 1,
-        "ingredients": [
-          { "item": "refined_ingot", "qty": 40 },
-          { "item": "polymer", "qty": 10 },
-          { "item": "carbon_fiber", "qty": 10 }
-        ]
-      }
+      "tier": "common",
+      "variantGroup": "assault_rifle",
+      "progression": 45,
+      "recipes": [
+        {
+          "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line"],
+          "yields": 1,
+          "ingredients": [
+            { "item": "refined_ingot", "qty": 40 },
+            { "item": "polymer", "qty": 10 },
+            { "item": "carbon_fiber", "qty": 10 }
+          ]
+        }
+      ]
     },
-    "assault_rifle_legendary": {
-      "name": "Assault Rifle (Legendary)",
-      "icon": "icons/assault_rifle.webp",
-      "category": "weapon",
-      "rarity": "legendary",
-      "family": "assault_rifle",
-      "recipe": {
-        "stations": ["weapon_assembly_line", "weapon_assembly_line_2", "advanced_weapon_assembly_line"],
-        "yields": 1,
-        "ingredients": [
-          { "item": "refined_ingot", "qty": 80 },
-          { "item": "polymer", "qty": 20 },
-          { "item": "carbon_fiber", "qty": 20 },
-          { "item": "ancient_civilization_parts", "qty": 4 }
-        ]
-      }
+    "carbon_fiber": {
+      "name": "Carbon Fiber",
+      "icon": "icons/carbon_fiber.webp",
+      "category": "material",
+      "tier": "common",
+      "progression": 35,
+      "recipes": [
+        {
+          "stations": ["production_assembly_line", "advanced_workshop"],
+          "yields": 1,
+          "ingredients": [
+            { "item": "coal", "qty": 2 },
+            { "item": "flame_organ", "qty": 1 }
+          ]
+        },
+        {
+          "stations": ["production_assembly_line", "advanced_workshop"],
+          "yields": 1,
+          "ingredients": [
+            { "item": "charcoal", "qty": 5 },
+            { "item": "flame_organ", "qty": 1 }
+          ]
+        }
+      ]
     },
-    "wood": { "name": "Wood", "icon": "icons/wood.webp", "category": "material", "rarity": "common" }
+    "wood": { "name": "Wood", "icon": "icons/wood.webp", "category": "material", "tier": "common" }
   }
 }
 ```
 
-`src/data/stations.json`:
+`src/data/<game>/stations.json`:
 
 ```json
 {
   "weapon_assembly_line": {
     "name": "Weapon Assembly Line",
     "icon": "icons/station_weapon_assembly_line.webp",
-    "techLevel": 30
+    "progression": 30
   }
 }
 ```
@@ -99,24 +110,41 @@ Rules:
   (e.g. `AssaultRifle_Default1..5` → `assault_rifle`,
   `assault_rifle_uncommon`, … `assault_rifle_legendary`). Never key by
   display name.
-- **Raw material = no `recipe` key.** That's the leaf test.
-- **`rarity`** on every item: `common | uncommon | rare | epic | legendary`.
-- **`family`** groups rarity variants of the same base item (omit for items
-  with no variants); the UI uses it for a rarity switcher and picker grouping.
+- **Raw material = no `recipes` key.** That's the leaf test everywhere, spelled
+  `!item.recipes?.length`. Absent beats empty: a present-but-empty array is a
+  validator error, not a legal "no recipe" spelling — as is any leftover
+  singular `recipe` key (schema v3 is a clean break, no back-compat).
+- **`tier`** on every item (was `rarity` pre-v2): for Palworld
+  `common | uncommon | rare | epic | legendary`; a game with no tier concept
+  declares `tiers: []` in its manifest and shows no tier UI at all.
+- **`variantGroup`** (was `family` pre-v2) groups tier variants of the same base
+  item (omit for items with no variants); the UI uses it for the variant
+  switcher and picker grouping.
 - **`stations` is an array** — a recipe can be crafted at any listed station
   (game tiers them, e.g. Weapon Assembly Line I/II/Advanced). UI shows the
   lowest-tech one by default.
 - `yields` covers batch recipes (output > 1 per craft): crafts needed =
   `ceil(qty / yields)`, ingredient amounts scale by crafts, not qty.
-- `recipe` stays a single object, but **multi-recipe items are confirmed to
-  exist** (Carbon Fiber, verified on paldb.cc 2026-07-27: Coal×2 + Flame
-  Organ×1 OR Charcoal×5 + Flame Organ×1, same stations/tech). Convention until
-  the schema grows a `recipes` array: store the cheapest-in-raw-resources
-  recipe as primary, and the Phase 3 scraper must log every alternate it
-  drops (bump `schemaVersion` when migrating to an array).
-- `techLevel` = tech tree unlock level (also used for sorting/filtering).
-- Icons are **local files** under `public/icons/`, named by item id — no
-  hotlinking, works offline. Variants of a family may share one icon file.
+- **`recipes` is an ARRAY** (schema v3, shipped `ede11c0`) — the interim "store
+  only the cheapest and log the alternates" convention this section used to
+  describe is retired. Multi-recipe items are real (Carbon Fiber: Coal×2 +
+  Flame Organ×1 OR Charcoal×5 + Flame Organ×1) and every recipe is now kept:
+  4 such items in Palworld, 364 in Minecraft. The array is sorted
+  cheapest-in-raw-resources first, so `recipes[0]` is the primary and any
+  consumer that doesn't care about alternates just reads it. A per-node
+  `RecipeSwitcher` picks among them, keyed by node path (see CLAUDE.md).
+- **An ingredient may carry `anyOf`** (schema axis 1, shipped `e2c5bad`) when a
+  slot accepts many items (Minecraft tags — `#minecraft:logs` has 48 members).
+  `item` stays the authoritative representative and drives every computation;
+  `anyOf` is display-only. Note the two are different axes and it's easy to
+  conflate them: `anyOf` is choice *within one slot*, `recipes[]` is choice
+  *between whole recipes*.
+- `progression` (was `techLevel` pre-v2) = tech-tree unlock level, also used for
+  sorting/filtering. The user-facing label ("Tech level") comes from the game
+  manifest, not from the field name.
+- Icons are **local files** under `public/games/<game>/icons/`, named by item id
+  — no hotlinking, works offline. Variants of a group may share one icon file,
+  and an icon may be legitimately absent (see CLAUDE.md → icon coverage floors).
 
 ## 2. Data acquisition — scrape paldb.cc (primary), palworld.gg (cross-check)
 
@@ -457,8 +485,16 @@ firing mid-recursion, not just at the root.
    multi-member tag (`#minecraft:logs` = 48 members), so one representative
    stands in for many and the tree reads "Campfire needs Oak Log ×3" instead of
    "any log". Same failure shape as the egg-"Contains" trap in §8: a
-   representative presented as fact. Needs an optional `anyOf` on an ingredient
-   plus UI support — **schema v3**, not yet done.
+   representative presented as fact.
+   **RESOLVED — both axes of "schema v3" have since shipped:** `anyOf` on an
+   ingredient (`e2c5bad`, 189 ingredients, max set 48) and `recipes[]`
+   (`ede11c0`, breaking, schemaVersion 2→3, 368 multi-recipe items). See §1.
+   The `recipes[]` migration was behaviour-preserving by construction —
+   `recipes[0]` is the same primary the scrapers already picked — verified
+   field-by-field vs the previous data: 1,989 + 1,246 items identical, 368
+   gained alternates with primaries unchanged, **0 other diffs**.
+   *Caveat if you redo that comparison:* normalise key ORDER, or you get
+   hundreds of false positives from `JSON.stringify` alone.
 
 ## Sources
 
