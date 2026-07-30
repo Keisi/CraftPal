@@ -1,6 +1,14 @@
 {
   "schemaVersion": 3,
   "gameVersion": "26.3-snapshot-6",
+  "sourceRef": {
+    "repo": "misode/mcmeta",
+    "pins": {
+      "summary": "b8170fbc07725bf4930d189ad5dc16f70e09b9cd",
+      "assetsJson": "e257648bb1289388f996e0962a91295b276780ff",
+      "assets": "1c967fa10bd695dc2050ba4c633c0c0e982863dd"
+    }
+  },
   "items": {
     "acacia_boat": {
       "name": "Acacia Boat",

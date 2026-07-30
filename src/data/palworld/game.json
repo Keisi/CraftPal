@@ -3,7 +3,7 @@
   "name": "CraftPal",
   "tagline": "Palworld crafting-tree explorer",
   "assetBase": "games/palworld/",
-  "datasets": ["map", "habitats", "pals"],
+  "datasets": ["map", "habitats", "pals", "tiles"],
   "minIconCoverage": 0.99,
   "attribution": [
     { "label": "paldb.cc", "url": "https://paldb.cc" },

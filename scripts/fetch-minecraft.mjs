@@ -10,6 +10,7 @@
 //
 // Usage:
 //   node scripts/fetch-minecraft.mjs [--limit=N] [--verbose]
+//   node scripts/fetch-minecraft.mjs --update-pins
 //
 // --limit=N caps the number of NEW icon fetches issued in this invocation
 //   (already-cached icons don't count). The 4 structured sources (recipes,
@@ -18,14 +19,31 @@
 //   mirroring fetch-map.mjs's tile-phase convention. Re-run to resume —
 //   everything is cached in scripts/.cache/minecraft/.
 //
-// Sources (all misode/mcmeta, verified live before this script was written):
-//   recipes    https://raw.githubusercontent.com/misode/mcmeta/summary/data/recipe/data.min.json
+// --update-pins re-resolves scripts/minecraft-sources.lock.json's three commit
+//   SHAs to whatever 'summary'/'assets-json'/'assets' currently point at (via
+//   the GitHub API), prints the before/after diff, writes the lock file, and
+//   EXITS — it does not also run the scrape. That is a deliberate two-step
+//   split: re-resolving pins (a decision to pull a fresh upstream snapshot) is
+//   never something a plain re-run does by accident. Review what moved, then
+//   re-run the script normally to actually fetch with the new pins.
+//
+// Sources (all misode/mcmeta, verified live before this script was written) —
+// PINNED BY COMMIT SHA, not branch name (see scripts/minecraft-sources.lock.json).
+// misode/mcmeta publishes three ever-moving branches (a live mirror of the
+// game's own datamined files); fetching straight from a branch name means a
+// regeneration is not reproducible — a branch can move mid-run (observed: the
+// resolved gameVersion silently advanced 26.3-snapshot-5 -> -6 between two
+// fetches of the same invocation) and a future run could quietly mix an
+// upstream refresh into an unrelated commit. Every URL below substitutes the
+// branch name for the SHA the lock file pinned it to; the paths (after the
+// ref segment) are unchanged from what each branch has always served at:
+//   recipes    .../<summary sha>/data/recipe/data.min.json
 //              1,978 recipes as of 2026-07-27 (see EXPECTED_RECIPE_COUNT below).
-//   tags       https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.min.json
-//   lang       https://raw.githubusercontent.com/misode/mcmeta/assets-json/assets/minecraft/lang/en_us.json
-//   registries https://raw.githubusercontent.com/misode/mcmeta/summary/registries/data.min.json
-//   version    https://raw.githubusercontent.com/misode/mcmeta/summary/version.json
-//   icons      https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/{item,block}/<id>[_front|_top|_side].png
+//   tags       .../<summary sha>/data/tag/item/data.min.json
+//   lang       .../<assets-json sha>/assets/minecraft/lang/en_us.json
+//   registries .../<summary sha>/registries/data.min.json
+//   version    .../<summary sha>/version.json
+//   icons      .../<assets sha>/assets/minecraft/textures/{item,block}/<id>[_front|_top|_side].png
 //
 // ---------------------------------------------------------------------------
 // Recipe-type decisions (fixed, verified against real data before writing
@@ -146,14 +164,11 @@ const REPORT_OUT = path.join(CACHE_DIR, 'fetch-minecraft-report.json');
 // on a later run can never mask an id that just wasn't tried yet.
 const NO_ICON_CACHE_FILE = path.join(CACHE_DIR, 'no-icon.json');
 
+const LOCK_PATH = path.join(ROOT, 'scripts', 'minecraft-sources.lock.json');
+const REPO = 'misode/mcmeta';
+const LOCK_BRANCHES = ['summary', 'assets-json', 'assets']; // upstream's own branch names
 const RAW_BASE = 'https://raw.githubusercontent.com/misode/mcmeta';
-const RECIPES_URL = `${RAW_BASE}/summary/data/recipe/data.min.json`;
-const TAGS_URL = `${RAW_BASE}/summary/data/tag/item/data.min.json`;
-const LANG_URL = `${RAW_BASE}/assets-json/assets/minecraft/lang/en_us.json`;
-const REGISTRIES_URL = `${RAW_BASE}/summary/registries/data.min.json`;
-const VERSION_URL = `${RAW_BASE}/summary/version.json`;
-const ITEM_TEX_BASE = `${RAW_BASE}/assets/assets/minecraft/textures/item`;
-const BLOCK_TEX_BASE = `${RAW_BASE}/assets/assets/minecraft/textures/block`;
+const GITHUB_API_BASE = 'https://api.github.com/repos/misode/mcmeta';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -161,6 +176,49 @@ const USER_AGENT =
 // 403s on bare requests) — a lighter throttle than the paldb scrapers'
 // 300-500ms is deliberate, not an oversight.
 const MIN_INTERVAL_MS = 120;
+
+/** Load scripts/minecraft-sources.lock.json. Hard-errors (with a pointer to
+ * --update-pins) if it's missing — pinning is mandatory, there is no silent
+ * branch-name fallback (that would defeat the entire point: item 1's fix). */
+function loadLock() {
+  if (!existsSync(LOCK_PATH)) {
+    throw new Error(
+      `HARD ERROR: ${LOCK_PATH} not found. This scraper fetches misode/mcmeta by pinned commit SHA, never by ` +
+        `rolling branch name (branches move — see the module comment). Resolve pins first: ` +
+        `node scripts/fetch-minecraft.mjs --update-pins`,
+    );
+  }
+  let lock;
+  try {
+    lock = JSON.parse(readFileSync(LOCK_PATH, 'utf8'));
+  } catch (err) {
+    throw new Error(`HARD ERROR: ${LOCK_PATH} is not valid JSON: ${err.message}`);
+  }
+  for (const key of ['summary', 'assetsJson', 'assets']) {
+    if (!lock.pins?.[key]?.sha) {
+      throw new Error(`HARD ERROR: ${LOCK_PATH} is missing pins.${key}.sha — re-run with --update-pins to repair it`);
+    }
+  }
+  return lock;
+}
+
+// Built once main() has loaded the lock (see buildSourceUrls) — declared here
+// so every reference below in the file can close over the same object.
+let SOURCE_URLS = null;
+function buildSourceUrls(lock) {
+  const summarySha = lock.pins.summary.sha;
+  const assetsJsonSha = lock.pins.assetsJson.sha;
+  const assetsSha = lock.pins.assets.sha;
+  return {
+    RECIPES_URL: `${RAW_BASE}/${summarySha}/data/recipe/data.min.json`,
+    TAGS_URL: `${RAW_BASE}/${summarySha}/data/tag/item/data.min.json`,
+    LANG_URL: `${RAW_BASE}/${assetsJsonSha}/assets/minecraft/lang/en_us.json`,
+    REGISTRIES_URL: `${RAW_BASE}/${summarySha}/registries/data.min.json`,
+    VERSION_URL: `${RAW_BASE}/${summarySha}/version.json`,
+    ITEM_TEX_BASE: `${RAW_BASE}/${assetsSha}/assets/minecraft/textures/item`,
+    BLOCK_TEX_BASE: `${RAW_BASE}/${assetsSha}/assets/minecraft/textures/block`,
+  };
+}
 
 // Tripwire: hard-error if the fetched recipe count collapses relative to the
 // real value observed 2026-07-27 (1,978) — catches a truncated fetch or an
@@ -200,10 +258,12 @@ const STATION_IDS = [...new Set(Object.values(RECIPE_TYPE_STATION))];
 const args = process.argv.slice(2);
 let LIMIT = Infinity;
 let VERBOSE = false;
+let UPDATE_PINS = false;
 for (const arg of args) {
   const m = arg.match(/^--limit=(\d+)$/);
   if (m) LIMIT = Number(m[1]);
   if (arg === '--verbose') VERBOSE = true;
+  if (arg === '--update-pins') UPDATE_PINS = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +416,115 @@ async function fetchJsonSource(url, cacheFile, label, report) {
   ensureDir(path.dirname(cacheFile));
   writeFileSync(cacheFile, result.body, 'utf8');
   return JSON.parse(result.body);
+}
+
+// ---------------------------------------------------------------------------
+// --update-pins: resolve the GitHub API for each branch's CURRENT head SHA.
+// Deliberately separate from the raw.githubusercontent.com content fetches
+// above (different host, different response shape, and NEVER cached — the
+// whole point is "what does this branch point at RIGHT NOW", so a cached
+// answer would be self-defeating).
+// ---------------------------------------------------------------------------
+async function fetchGithubApiJson(pathSegment) {
+  const url = `${GITHUB_API_BASE}${pathSegment}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/vnd.github+json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`GitHub API ${url} -> HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Resolve a branch's current head commit SHA via the GitHub API
+ * (/repos/misode/mcmeta/branches/<branch>). */
+async function resolveBranchSha(branch) {
+  const doc = await fetchGithubApiJson(`/branches/${encodeURIComponent(branch)}`);
+  if (!doc?.commit?.sha) throw new Error(`GitHub API returned no commit.sha for branch "${branch}"`);
+  return doc.commit.sha;
+}
+
+/**
+ * --update-pins: re-resolve all three branch pins to their CURRENT head SHAs,
+ * fetch version.json at the newly-resolved summary SHA (so the lock file's
+ * own gameVersion is honest about what these pins point to, without having
+ * to run the whole scrape just to find out), print the before/after diff,
+ * and rewrite scripts/minecraft-sources.lock.json.
+ *
+ * Deliberately does NOT go on to run the scrape itself — re-resolving pins is
+ * a decision to pull a fresh upstream snapshot into a future commit, and that
+ * should never happen as a side effect of an unrelated invocation. Review the
+ * diff, then re-run the script normally (no flag) to actually fetch with the
+ * new pins.
+ */
+async function updatePins() {
+  const previous = existsSync(LOCK_PATH) ? JSON.parse(readFileSync(LOCK_PATH, 'utf8')) : null;
+
+  log(
+    `fetch-minecraft --update-pins: resolving current HEAD of ${LOCK_BRANCHES.map((b) => `"${b}"`).join(', ')} on ${REPO}...`,
+  );
+  const resolvedByBranch = {};
+  for (const branch of LOCK_BRANCHES) {
+    resolvedByBranch[branch] = await resolveBranchSha(branch);
+    vlog(`  ${branch} -> ${resolvedByBranch[branch]}`);
+  }
+
+  const summarySha = resolvedByBranch['summary'];
+  let gameVersion = 'unknown (version.json unreachable at the newly-resolved summary sha)';
+  try {
+    const versionRes = await fetch(`${RAW_BASE}/${summarySha}/version.json`, {
+      headers: { 'User-Agent': USER_AGENT },
+    });
+    if (versionRes.ok) {
+      const versionDoc = await versionRes.json();
+      gameVersion = versionDoc?.id ?? gameVersion;
+    }
+  } catch {
+    // Diagnostic only (it's recorded for a human's convenience, not relied
+    // on for correctness — the real gameVersion always comes from the actual
+    // scrape run) — never fatal for --update-pins itself.
+  }
+
+  const lock = {
+    _comment:
+      previous?._comment ??
+      "Pins scripts/fetch-minecraft.mjs's upstream (misode/mcmeta) to exact commit SHAs instead of the rolling " +
+        "'summary'/'assets-json'/'assets' branch refs — see the script's module comment for why. Re-run " +
+        '`node scripts/fetch-minecraft.mjs --update-pins` to intentionally advance these on purpose. Do not ' +
+        'hand-edit the shas below.',
+    repo: REPO,
+    resolvedAt: new Date().toISOString(),
+    gameVersion,
+    pins: {
+      summary: { branch: 'summary', sha: resolvedByBranch['summary'] },
+      assetsJson: { branch: 'assets-json', sha: resolvedByBranch['assets-json'] },
+      assets: { branch: 'assets', sha: resolvedByBranch['assets'] },
+    },
+  };
+
+  log('');
+  log('fetch-minecraft --update-pins: diff');
+  for (const [key, branch] of [
+    ['summary', 'summary'],
+    ['assetsJson', 'assets-json'],
+    ['assets', 'assets'],
+  ]) {
+    const oldSha = previous?.pins?.[key]?.sha ?? '(none — first resolve)';
+    const newSha = lock.pins[key].sha;
+    log(`  ${branch}: ${oldSha} -> ${newSha}${oldSha === newSha ? ' (unchanged)' : '  *** CHANGED ***'}`);
+  }
+  const oldVersion = previous?.gameVersion ?? '(none)';
+  log(`  gameVersion: ${oldVersion} -> ${gameVersion}${oldVersion === gameVersion ? ' (unchanged)' : '  *** CHANGED ***'}`);
+
+  writeFileSync(LOCK_PATH, JSON.stringify(lock, null, 2) + '\n', 'utf8');
+  log('');
+  log(`fetch-minecraft --update-pins: wrote ${LOCK_PATH}`);
+  log('Review the diff above, then re-run the scraper normally (no --update-pins) to fetch with the new pins.');
 }
 
 /** Fetch one icon candidate (binary), cached under scripts/.cache/minecraft/icons/,
@@ -639,11 +808,11 @@ function computeRawCost(itemId, candidatesByResult, memo, visiting) {
 // ---------------------------------------------------------------------------
 async function resolveIconBytes(id, report) {
   const attempts = [
-    [`${ITEM_TEX_BASE}/${id}.png`, 'item'],
-    [`${BLOCK_TEX_BASE}/${id}.png`, 'block'],
-    [`${BLOCK_TEX_BASE}/${id}_front.png`, 'block_front'],
-    [`${BLOCK_TEX_BASE}/${id}_top.png`, 'block_top'],
-    [`${BLOCK_TEX_BASE}/${id}_side.png`, 'block_side'],
+    [`${SOURCE_URLS.ITEM_TEX_BASE}/${id}.png`, 'item'],
+    [`${SOURCE_URLS.BLOCK_TEX_BASE}/${id}.png`, 'block'],
+    [`${SOURCE_URLS.BLOCK_TEX_BASE}/${id}_front.png`, 'block_front'],
+    [`${SOURCE_URLS.BLOCK_TEX_BASE}/${id}_top.png`, 'block_top'],
+    [`${SOURCE_URLS.BLOCK_TEX_BASE}/${id}_side.png`, 'block_side'],
   ];
   const cacheFile = path.join(ICONS_CACHE_DIR, `${id}.png`);
   for (const [url, tier] of attempts) {
@@ -658,6 +827,19 @@ async function resolveIconBytes(id, report) {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
+  if (UPDATE_PINS) {
+    await updatePins();
+    return;
+  }
+
+  const lock = loadLock();
+  SOURCE_URLS = buildSourceUrls(lock);
+  log(
+    `fetch-minecraft: pinned to ${lock.repo} summary=${lock.pins.summary.sha.slice(0, 12)} ` +
+      `assets-json=${lock.pins.assetsJson.sha.slice(0, 12)} assets=${lock.pins.assets.sha.slice(0, 12)} ` +
+      `(resolved ${lock.resolvedAt}, gameVersion ${lock.gameVersion})`,
+  );
+
   ensureDir(CACHE_DIR);
   ensureDir(ICONS_CACHE_DIR);
   ensureDir(GAME_DATA_DIR);
@@ -684,22 +866,43 @@ async function main() {
   };
 
   log('fetch-minecraft: fetching structured sources (recipes, tags, lang, registries, version)...');
-  const recipesDoc = await fetchJsonSource(RECIPES_URL, path.join(CACHE_DIR, 'recipes.json'), 'recipes', report);
-  const tagsDoc = await fetchJsonSource(TAGS_URL, path.join(CACHE_DIR, 'tags.json'), 'tags', report);
-  const langDoc = await fetchJsonSource(LANG_URL, path.join(CACHE_DIR, 'lang.json'), 'lang', report);
+  const recipesDoc = await fetchJsonSource(
+    SOURCE_URLS.RECIPES_URL,
+    path.join(CACHE_DIR, 'recipes.json'),
+    'recipes',
+    report,
+  );
+  const tagsDoc = await fetchJsonSource(SOURCE_URLS.TAGS_URL, path.join(CACHE_DIR, 'tags.json'), 'tags', report);
+  const langDoc = await fetchJsonSource(SOURCE_URLS.LANG_URL, path.join(CACHE_DIR, 'lang.json'), 'lang', report);
   const registriesDoc = await fetchJsonSource(
-    REGISTRIES_URL,
+    SOURCE_URLS.REGISTRIES_URL,
     path.join(CACHE_DIR, 'registries.json'),
     'registries',
     report,
   );
-  const versionDoc = await fetchJsonSource(VERSION_URL, path.join(CACHE_DIR, 'version.json'), 'version', report);
+  const versionDoc = await fetchJsonSource(
+    SOURCE_URLS.VERSION_URL,
+    path.join(CACHE_DIR, 'version.json'),
+    'version',
+    report,
+  );
 
-  if (!recipesDoc) throw new Error('HARD ERROR: could not fetch recipes.json — see report.failedSources');
-  if (!tagsDoc) throw new Error('HARD ERROR: could not fetch tags.json — see report.failedSources');
-  if (!langDoc) throw new Error('HARD ERROR: could not fetch lang (en_us.json) — see report.failedSources');
+  // A failure here means the PINNED SHA is unreachable — not a branch that
+  // moved (pinning removes that possibility entirely), but something rarer:
+  // a force-pushed/rewritten branch history that dropped the pinned commit,
+  // a network issue, or a corrupted lock file. Hard-error rather than fall
+  // back to the rolling branch name (that would silently defeat item 1's
+  // whole point). If upstream genuinely moved on and you WANT the refresh,
+  // that is exactly what --update-pins is for — a deliberate re-resolve, not
+  // an automatic fallback.
+  const pinHint =
+    `pins resolved ${lock.resolvedAt} from ${lock.repo} — if upstream has moved on and you want the refresh, run ` +
+    `'node scripts/fetch-minecraft.mjs --update-pins' on purpose; otherwise this pinned commit should not have gone missing.`;
+  if (!recipesDoc) throw new Error(`HARD ERROR: could not fetch recipes.json at the pinned summary sha — see report.failedSources. ${pinHint}`);
+  if (!tagsDoc) throw new Error(`HARD ERROR: could not fetch tags.json at the pinned summary sha — see report.failedSources. ${pinHint}`);
+  if (!langDoc) throw new Error(`HARD ERROR: could not fetch lang (en_us.json) at the pinned assets-json sha — see report.failedSources. ${pinHint}`);
   if (!registriesDoc?.item) {
-    throw new Error('HARD ERROR: registries.json missing or has no "item" registry — see report.failedSources');
+    throw new Error(`HARD ERROR: registries.json missing or has no "item" registry at the pinned summary sha — see report.failedSources. ${pinHint}`);
   }
 
   const recipeCount = Object.keys(recipesDoc).length;
@@ -1057,12 +1260,25 @@ async function main() {
   // schema v3 (PLAN.md §1 decision 2): bumped from 2 -> 3 for the recipe ->
   // recipes[] breaking change (clean break, no legacy `recipe` key emitted).
   const gameVersion = versionDoc?.id ?? 'unknown (misode/mcmeta summary/version.json unreachable)';
-  const itemsDoc = { schemaVersion: 3, gameVersion, items: finalItems };
+  // sourceRef (item 1 hardening): record exactly which pinned upstream commits
+  // produced this file, alongside gameVersion, so a future reader never has
+  // to guess — the lock file can be re-resolved/rewritten later on purpose,
+  // but this snapshot is frozen at generation time.
+  const sourceRef = {
+    repo: lock.repo,
+    pins: {
+      summary: lock.pins.summary.sha,
+      assetsJson: lock.pins.assetsJson.sha,
+      assets: lock.pins.assets.sha,
+    },
+  };
+  const itemsDoc = { schemaVersion: 3, gameVersion, sourceRef, items: finalItems };
   writeFileSync(ITEMS_OUT, JSON.stringify(itemsDoc, null, 2) + '\n', 'utf8');
   writeFileSync(STATIONS_OUT, JSON.stringify(finalStations, null, 2) + '\n', 'utf8');
 
   report.finishedAt = new Date().toISOString();
   report.gameVersion = gameVersion;
+  report.sourceRef = sourceRef;
   report.partial = limitReached;
   report.counts = {
     recipesTotal: recipeCount,

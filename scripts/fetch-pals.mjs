@@ -4,7 +4,7 @@
 // downloads pal icons. See PLAN.md §8.
 //
 // Usage:
-//   node scripts/fetch-pals.mjs [--limit=N] [--only=index,datatable,detail,habitat,icon] [--verbose]
+//   node scripts/fetch-pals.mjs [--limit=N] [--only=index,datatable,detail,habitat,icon] [--verbose] [--allow-shrink]
 //
 // --limit=N   caps the number of NEW network requests (page/datatable/habitat/
 //             icon fetches) issued in this invocation. Already-cached
@@ -15,6 +15,24 @@
 //             phase not listed still uses its cache if present, but won't
 //             fetch. Useful for iterating on one parser without re-hitting
 //             the site.
+// --allow-shrink  overrides the per-pal habitat SHRINK GUARD below (never a
+//             silent pass — it still logs every collapsed pal, just doesn't
+//             hard-error). Only for a genuine game patch that removed real
+//             spawns; verify the printed list by hand first.
+//
+// Per-pal habitat SHRINK GUARD (baseline diff, hardening): the roster/habitat
+// floors above only cross-check pals.json's OWN counts against the habitat
+// files THIS run just wrote — they would agree with each other while BOTH
+// being wrong (e.g. one pal's cloud silently collapsing from 351 points to 3
+// trips neither floor, since nothing here compares against anything OUTSIDE
+// this run). Guarded against by diffing every pal present in both this run's
+// output and the PREVIOUSLY COMMITTED src/data/palworld/pals.json (read once,
+// early, before this run overwrites it) — see compareHabitatBaseline() and
+// SHRINK_TOLERANCE below for the threshold and its justification. Gated by
+// the same habitatFloorApplies condition as the existing habitat floor, so a
+// deliberate partial run (--limit, or --only excluding "habitat") is never
+// mistaken for a real collapse; a missing baseline (first-ever run) skips
+// cleanly.
 //
 // Design:
 //   1. Discover the pal roster from the server-rendered card grid at
@@ -128,6 +146,22 @@ const MIN_PAL_ROSTER_TRIPWIRE = 250 // real roster on 2026-07-27 is 300 pals (29
 // incremental invocation would false-fire constantly during development.
 const MIN_HABITATS_TRIPWIRE = 200 // real count on 2026-07-27 is 279/300 (21 are genuine upstream 404s for unique/boss pals; the +1 over the old 278/299 is PlantSlime_Flower, which does have real habitat data)
 
+// Per-pal habitat SHRINK GUARD (see the module comment above): hard-error
+// when a pal present in both the committed baseline and this run's output
+// has its day OR night point count drop to zero (baseline was nonzero), or
+// to below this fraction of the baseline count. paldb.cc's spawn point
+// clouds are datamined-per-patch figures, not a live population count — a
+// healthy re-scrape reproduces the same cloud almost exactly, and a REAL
+// balance patch nudges individual spawn points rather than gutting half of
+// one pal's whole distribution. A 50% collapse on a single pal is therefore
+// far more consistent with a broken parse / truncated response than with a
+// legitimate patch, while still leaving headroom for ordinary drift (a
+// handful of points moving across a cell boundary, a radius-rounding change,
+// etc). Pick a different threshold if a real patch ever proves this wrong —
+// but don't raise it just to silence one report; use --allow-shrink instead,
+// which still requires eyeballing the printed worst-offenders list.
+export const SHRINK_TOLERANCE = 0.5
+
 // ---------------------------------------------------------------------------
 // CLI args
 // ---------------------------------------------------------------------------
@@ -135,10 +169,12 @@ const args = process.argv.slice(2)
 let LIMIT = Infinity
 let VERBOSE = false
 let ONLY = null // null == all phases allowed
+let ALLOW_SHRINK = false
 for (const arg of args) {
   const limitMatch = arg.match(/^--limit=(\d+)$/)
   if (limitMatch) LIMIT = Number(limitMatch[1])
   if (arg === '--verbose') VERBOSE = true
+  if (arg === '--allow-shrink') ALLOW_SHRINK = true
   const onlyMatch = arg.match(/^--only=(.+)$/)
   if (onlyMatch) ONLY = new Set(onlyMatch[1].split(',').map((s) => s.trim()).filter(Boolean))
 }
@@ -456,6 +492,121 @@ function levelRange(...locationArrays) {
 }
 
 // ---------------------------------------------------------------------------
+// Per-pal habitat shrink guard (baseline diff) — see the module comment.
+// ---------------------------------------------------------------------------
+
+/** Read the PREVIOUSLY COMMITTED pals.json, if any, before this run's own
+ * write touches it. Returns the `pals` map, or null if there is no baseline
+ * yet (first-ever run) or it fails to parse (treated the same as "no
+ * baseline" — this check can only compare against a trustworthy snapshot). */
+function loadBaselinePals() {
+  if (!existsSync(PALS_OUT)) return null
+  try {
+    const doc = JSON.parse(readFileSync(PALS_OUT, 'utf8'))
+    return doc.pals ?? {}
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Compare this run's finalPals against `baselinePals` (captured at the START
+ * of main(), before this run overwrote pals.json). HARD-ERRORS (unless
+ * `allowShrink`) when any pal present in both goes from a positive baseline
+ * day/night count to zero, or drops below SHRINK_TOLERANCE of its baseline
+ * count, on either day or night.
+ *
+ * `floorApplies` mirrors the existing habitat floor's gating exactly (habitat
+ * phase allowed this run, not cut short by --limit) — a deliberately partial
+ * invocation must never be mistaken for a real collapse. `baselinePals ===
+ * null` (first-ever run) always skips cleanly regardless of floorApplies.
+ */
+export function compareHabitatBaseline(baselinePals, finalPals, floorApplies, allowShrink, report) {
+  if (baselinePals == null) {
+    report.habitatShrinkCheck = { skipped: 'no baseline pals.json found — first-ever run' }
+    log('fetch-pals: habitat shrink check — no baseline pals.json found (first-ever run), skipped cleanly')
+    return
+  }
+  if (!floorApplies) {
+    report.habitatShrinkCheck = {
+      skipped:
+        'this run did not have a full opportunity to observe the whole roster (habitat phase excluded via --only, or --limit cut it short)',
+    }
+    log('fetch-pals: habitat shrink check — skipped (partial run: --only/--limit)')
+    return
+  }
+
+  let compared = 0
+  let unchanged = 0
+  let grown = 0
+  let shrunkWithinTolerance = 0
+  const tripped = [] // { code, name, day: {before, after}, night: {before, after} }
+
+  for (const [code, baseline] of Object.entries(baselinePals)) {
+    const current = finalPals[code]
+    if (!current) continue // pal no longer in this run's roster — not this check's concern
+    const baseDay = baseline.habitat?.day ?? 0
+    const baseNight = baseline.habitat?.night ?? 0
+    if (baseDay === 0 && baseNight === 0) continue // nothing to shrink from
+    const curDay = current.habitat?.day ?? 0
+    const curNight = current.habitat?.night ?? 0
+    compared++
+
+    const dayCollapsed = baseDay > 0 && (curDay === 0 || curDay < baseDay * SHRINK_TOLERANCE)
+    const nightCollapsed = baseNight > 0 && (curNight === 0 || curNight < baseNight * SHRINK_TOLERANCE)
+
+    if (dayCollapsed || nightCollapsed) {
+      tripped.push({
+        code,
+        name: current.name ?? baseline.name,
+        day: { before: baseDay, after: curDay },
+        night: { before: baseNight, after: curNight },
+      })
+    } else if (curDay > baseDay || curNight > baseNight) {
+      grown++
+    } else if (curDay < baseDay || curNight < baseNight) {
+      shrunkWithinTolerance++
+    } else {
+      unchanged++
+    }
+  }
+
+  report.habitatShrinkCheck = { compared, unchanged, grown, shrunkWithinTolerance, tripped }
+  log(
+    `fetch-pals: habitat shrink check — ${compared} pal(s) compared against the committed baseline: ` +
+      `${unchanged} unchanged, ${grown} grown, ${shrunkWithinTolerance} shrunk within tolerance, ` +
+      `${tripped.length} tripped the ${(SHRINK_TOLERANCE * 100).toFixed(0)}% floor`,
+  )
+
+  if (tripped.length === 0) return
+
+  const worst = [...tripped]
+    .sort((a, b) => {
+      const ratio = (t) => Math.min(t.day.after / Math.max(t.day.before, 1), t.night.after / Math.max(t.night.before, 1))
+      return ratio(a) - ratio(b)
+    })
+    .slice(0, 15)
+  log('fetch-pals: WORST OFFENDERS (habitat collapse):')
+  for (const t of worst) {
+    log(`    ${t.code} (${t.name}): day ${t.day.before} -> ${t.day.after}, night ${t.night.before} -> ${t.night.after}`)
+  }
+
+  if (allowShrink) {
+    log(
+      `fetch-pals: --allow-shrink set — NOT hard-erroring despite ${tripped.length} collapsed pal(s) above. ` +
+        `Only use this for a genuine game patch that removed spawns; verify the list above by hand first.`,
+    )
+    return
+  }
+  throw new Error(
+    `HARD ERROR: ${tripped.length} pal(s) had a day or night habitat point count collapse to below ` +
+      `${(SHRINK_TOLERANCE * 100).toFixed(0)}% of the committed baseline (see the worst-offenders list above and ` +
+      `report.habitatShrinkCheck.tripped). If this is a genuine game patch that removed spawns, re-run with ` +
+      `--allow-shrink after verifying the list by hand; otherwise this is very likely a broken parse/truncated fetch.`,
+  )
+}
+
+// ---------------------------------------------------------------------------
 // CraftPal item-id resolution for drops
 // ---------------------------------------------------------------------------
 function loadItemNameIndex(report) {
@@ -505,6 +656,10 @@ async function main() {
     counts: {},
     partial: false,
   }
+
+  // Captured HERE, before anything below touches PALS_OUT, so it is the
+  // PREVIOUSLY COMMITTED snapshot — not this run's own output.
+  const baselinePals = loadBaselinePals()
 
   log('fetch-pals: discovering pal roster from /en/Pals...')
   const gameVersion = await discoverGameVersion(report)
@@ -767,6 +922,18 @@ async function main() {
     finalPals[codeLower] = entry
   }
 
+  // Per-pal habitat shrink guard (item 2 hardening) — compare THIS run's
+  // freshly-built finalPals against the baseline captured at the very start
+  // of main(), before anything below overwrote PALS_OUT. Throws (unless
+  // --allow-shrink) before pals.json itself is written, so a collapse never
+  // reaches that file. NOTE: the per-pal habitat/<code>.json files were
+  // already (re)written inside the loop above as each pal was processed —
+  // this check can't undo that — but they remain uncommitted working-tree
+  // changes at this point (git diff shows exactly what moved, nothing is
+  // pushed automatically), and a real regeneration is always re-run after
+  // fixing the root cause anyway.
+  compareHabitatBaseline(baselinePals, finalPals, habitatFloorApplies, ALLOW_SHRINK, report)
+
   const palsDoc = { schemaVersion: 1, gameVersion, pals: finalPals }
   writeFileSync(PALS_OUT, JSON.stringify(palsDoc, null, 2) + '\n', 'utf8')
 
@@ -853,7 +1020,15 @@ async function main() {
   log(`  report written to ${REPORT_OUT}`)
 }
 
-main().catch((err) => {
-  console.error('fetch-pals: FATAL', err)
-  process.exit(1)
-})
+// Guarded so this module can be safely `import`ed (e.g. to exercise a pure
+// helper like compareHabitatBaseline in isolation) without triggering a live
+// scrape — main() only self-invokes when this file is run directly, exactly
+// like Python's `if __name__ == '__main__':`. Behaviour when run via
+// `node scripts/fetch-pals.mjs` (or the `fetch-pals` npm script) is unchanged.
+const isMain = process.argv[1] != null && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMain) {
+  main().catch((err) => {
+    console.error('fetch-pals: FATAL', err)
+    process.exit(1)
+  })
+}

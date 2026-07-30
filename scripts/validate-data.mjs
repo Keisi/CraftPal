@@ -403,6 +403,18 @@ function validateGame(gameId, errors) {
 
   // stations.json is optional — a game with no crafting-station concept can
   // omit it entirely and every station-shaped check below just sees {}.
+  // AUDITED as part of item 3 (manifest-driven dataset presence): unlike
+  // map/habitats/pals/tiles (PLAN.md §8, generated add-ons a game may or may
+  // not ship), stations.json is core §1 schema alongside items.json — but it
+  // is NOT added to the manifest.datasets hard-error gate below, and that is
+  // deliberate, not an oversight: if a game genuinely HAS stations and this
+  // file went missing, every recipe.stations[] reference would already fail
+  // as an "unknown station" error the moment any item's recipe is checked
+  // (below) — the existing reference-integrity checks already make that
+  // regression loud. Only a game with truly no station concept (there isn't
+  // one yet, but §9 anticipates it) would have zero recipes referencing any
+  // station, and for THAT game an absent stations.json is legitimately inert,
+  // not a hidden collapse. So this one stays a plain optional load.
   const stationsDoc = existsSync(stationsPath) ? loadJson(stationsPath, `[${gameId}] stations.json`, errors) : {}
 
   const items = itemsDoc.items ?? {}
@@ -568,11 +580,35 @@ function validateGame(gameId, errors) {
     )
   }
 
-  // 5. Generated datasets (§8) — each optional per game; absent = skip, not fail.
+  // 5. Generated datasets (§8) — presence is MANIFEST-DRIVEN (item 3
+  // hardening), not "absent is always legal". A dataset a game never had
+  // (Minecraft: `"datasets": []`) is a legitimate skip, exactly as before.
+  // But a dataset NAMED in this game's own game.json `datasets` array is now
+  // a HARD ERROR when missing or empty — that is precisely the escape-hatch
+  // shape that would let a real regression (a deleted map.json, a wiped
+  // habitats/ dir, an emptied pals.json) print "skipped (not present)" and
+  // exit 0. The manifest is the discriminator: it already had to be checked,
+  // never assumed (see game.json audits for both games alongside this fix).
   const palsPath = path.join(gameDir, 'pals.json')
   const habitatsDir = path.join(publicAssetDir, 'data', 'habitats')
   const mapPath = path.join(publicAssetDir, 'data', 'map.json')
   const tilesDir = path.join(publicAssetDir, 'tiles')
+  const declaredDatasets = new Set(manifest.datasets ?? [])
+
+  /** A declared dataset that is absent, OR present-but-empty, is a hard
+   * error. An undeclared dataset is never checked here — its presence/
+   * absence is exactly as legitimate as it always was. */
+  function checkDeclaredDataset(name, present, isEmpty, whatMissing) {
+    if (!declaredDatasets.has(name)) return
+    if (!present) {
+      errors.push(
+        `[${gameId}] game.json declares dataset "${name}" but ${whatMissing} is absent — either regenerate it or ` +
+          `remove "${name}" from game.json's "datasets" if this game genuinely no longer ships it.`,
+      )
+    } else if (isEmpty) {
+      errors.push(`[${gameId}] game.json declares dataset "${name}" but ${whatMissing} is empty (0 entries).`)
+    }
+  }
 
   const skipped = []
   const { fileCount: habitatFileCount, pointCounts: habitatPointCounts } = validateHabitatFiles(
@@ -580,7 +616,9 @@ function validateGame(gameId, errors) {
     habitatsDir,
     errors,
   )
-  if (!existsSync(habitatsDir)) skipped.push('habitats/')
+  const habitatsPresent = existsSync(habitatsDir)
+  if (!habitatsPresent) skipped.push('habitats/')
+  checkDeclaredDataset('habitats', habitatsPresent, habitatFileCount === 0, 'public/.../data/habitats/')
 
   const { present: palsPresent, palCount } = validatePals(
     gameId,
@@ -592,12 +630,19 @@ function validateGame(gameId, errors) {
     errors,
   )
   if (!palsPresent) skipped.push('pals.json')
+  checkDeclaredDataset('pals', palsPresent, palCount === 0, 'src/data/.../pals.json')
 
   const { present: mapPresent, markerCount } = validateMap(gameId, mapPath, items, errors)
   if (!mapPresent) skipped.push('map.json')
+  // markerCount === 0 while mapPresent is already a hard error inside
+  // validateMap() itself ("markers is empty") — checkDeclaredDataset still
+  // asserts it here too (a second, dataset-labelled error for the same
+  // root cause is harmless and makes the "declared dataset" angle explicit).
+  checkDeclaredDataset('map', mapPresent, markerCount === 0, 'public/.../data/map.json')
 
   const { present: tilesPresent, zoomCounts: tileZoomCounts } = validateTiles(gameId, tilesDir, errors)
   if (!tilesPresent) skipped.push('tiles/')
+  checkDeclaredDataset('tiles', tilesPresent, tilesPresent && Object.keys(tileZoomCounts ?? {}).length === 0, 'public/.../tiles/')
 
   return {
     itemCount: Object.keys(items).length,

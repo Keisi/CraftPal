@@ -70,7 +70,42 @@ be called `Paltree`. Remote: https://github.com/Keisi/CraftPal — hosted on
   chunk filename; resolve it by content anchor. Details: PLAN.md §8.
 - **A scraper that silently returns less is worse than one that dies.** Every
   fetch script hard-errors when its upstream shape changes (missing `var`,
-  marker count below a floor). Keep those tripwires.
+  marker count below a floor). Keep those tripwires. The full set of floors:
+  marker count (`fetch-map`), pal roster + habitats-with-data + **per-pal
+  habitat point counts** (`fetch-pals`), recipe count + icon coverage
+  (`fetch-minecraft`), and icon coverage per game (`validate-data`).
+  - **`fetch-pals` compares against the COMMITTED `pals.json` as a baseline**
+    and hard-errors when an individual pal's day or night point count collapses
+    (`SHRINK_TOLERANCE = 0.5`, i.e. >50% drop, or to zero). The older floors
+    couldn't see this: the validator cross-checks `pals.json`'s counts against
+    the habitat files the same run just wrote, so both can be wrong *in
+    agreement*. A real game patch that genuinely removes spawns is
+    `--allow-shrink`, which still prints the worst offenders to eyeball — never
+    raise the tolerance to silence a report.
+- **The Minecraft upstream is PINNED BY COMMIT SHA**, in
+  `scripts/minecraft-sources.lock.json` — never by branch name. `misode/mcmeta`'s
+  `summary`/`assets-json`/`assets` branches move, and a past regeneration watched
+  the resolved `gameVersion` advance `26.3-snapshot-5` → `-6` *mid-run*, purely
+  because a branch moved between two fetches in the same invocation. That made
+  regeneration irreproducible and could smuggle an upstream refresh into an
+  unrelated commit.
+  - A deliberate refresh is `node scripts/fetch-minecraft.mjs --update-pins`,
+    then review the printed diff and re-run normally. Don't hand-edit the SHAs,
+    and don't reintroduce a branch-ref fallback: a missing lock or an
+    unreachable pinned SHA is a hard error, on purpose.
+  - The pins are echoed into `items.json` as `sourceRef`, so a future reader can
+    tell exactly which upstream produced the committed data. Verified: fetching
+    by the pins reproduces the committed data **byte-for-byte** (1,610 items all
+    identical, 1,935 recipes, only `sourceRef` added).
+- **`game.json`'s `datasets` array is load-bearing, not documentation.** A
+  dataset **named** there that is missing or empty is a **hard error** in
+  `validate-data.mjs`; a dataset **not named** is legitimately skipped. That
+  distinction is what stops the "absent is legal" skip paths from becoming the
+  same unbounded escape hatch that once let a 99% icon collapse pass validation:
+  before this, deleting Palworld's `map.json` reported "skipped (not present)"
+  and exited 0. Palworld declares `["map","habitats","pals","tiles"]`; Minecraft
+  declares `[]`. So adding a dataset to a manifest commits you to shipping it,
+  and genuinely dropping one means removing it from `datasets` in the same change.
 - **Heavy datasets are lazy-fetched from `public/`, never static-imported.**
   `map.json` (~1.8 MB) and the per-pal `habitats/<code>.json` files must not
   enter the JS bundle. Habitat coords are **flat `[x,y,lv,…]` integer triples**
